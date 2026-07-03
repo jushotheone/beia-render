@@ -1,0 +1,83 @@
+name: Render video
+
+# Shared BEIA render service. Triggered by beia_core's remotion_video_tool via
+# the GitHub API (workflow_dispatch). Renders the generic QuoteReel from the
+# card image URLs and uploads the mp4 as an artifact. It is storage-blind:
+# beia_core downloads the artifact and stores it in the correct brand's R2.
+
+on:
+  workflow_dispatch:
+    inputs:
+      images:
+        description: "JSON array of card image URLs"
+        required: true
+      task_id:
+        description: "Originating BEIA task id (names the artifact)"
+        required: true
+      brand_name:
+        description: "Brand name shown on the end card"
+        required: false
+        default: "BEIA"
+      accent_color:
+        description: "Accent colour (hex) for the progress bar"
+        required: false
+        default: "#F97316"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install headless Chrome system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 || \
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build render props
+        env:
+          IMAGES: ${{ inputs.images }}
+          BRAND_NAME: ${{ inputs.brand_name }}
+          ACCENT_COLOR: ${{ inputs.accent_color }}
+        run: |
+          node -e '
+            const images = JSON.parse(process.env.IMAGES || "[]");
+            if (!Array.isArray(images) || images.length === 0) {
+              console.error("no images provided"); process.exit(1);
+            }
+            const props = {
+              images,
+              brandName: process.env.BRAND_NAME || "BEIA",
+              accentColor: process.env.ACCENT_COLOR || "#F97316",
+            };
+            require("fs").writeFileSync("props.json", JSON.stringify(props));
+            console.log("props: " + images.length + " images, brand " + props.brandName);
+          '
+
+      - name: Render reel
+        run: |
+          mkdir -p out
+          npx remotion render QuoteReel out/reel.mp4 --props=./props.json --concurrency=1 --log=verbose
+
+      - name: Upload rendered mp4
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ inputs.task_id }}
+          path: out/reel.mp4
+          retention-days: 1
+          if-no-files-found: error
