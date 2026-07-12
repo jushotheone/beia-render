@@ -10,6 +10,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "remotion": "4.0.476",
+    "@remotion/media-utils": "4.0.476",
     "@remotion/tailwind-v4": "4.0.476",
     "tailwindcss": "4.0.0"
   },

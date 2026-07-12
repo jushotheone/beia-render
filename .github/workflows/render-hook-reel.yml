@@ -1,0 +1,88 @@
+name: Render hook reel
+
+# Shared BEIA render service — repurpose short. Triggered by beia_core's
+# repurpose video tool via the GitHub API (workflow_dispatch). Renders the generic
+# HookIntroReel: a ~3s white card with the hook typed in, then the base campaign
+# video. Storage-blind: beia_core downloads the artifact and stores it in the
+# correct brand's R2. Generic — hook text, base video URL and accent are inputs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      hook:
+        description: "The hook line typed on the white intro card"
+        required: true
+      video_url:
+        description: "URL of the base campaign video (mp4) that follows the intro"
+        required: true
+      task_id:
+        description: "Originating BEIA task id (names the artifact)"
+        required: true
+      brand_name:
+        description: "Brand name"
+        required: false
+        default: "Ruoth"
+      accent_color:
+        description: "Accent colour (hex) for the typewriter cursor"
+        required: false
+        default: "#C0392B"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install headless Chrome system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 || \
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build render props
+        env:
+          HOOK: ${{ inputs.hook }}
+          VIDEO_URL: ${{ inputs.video_url }}
+          BRAND_NAME: ${{ inputs.brand_name }}
+          ACCENT_COLOR: ${{ inputs.accent_color }}
+        run: |
+          node -e '
+            const hook = process.env.HOOK || "";
+            const videoUrl = process.env.VIDEO_URL || "";
+            if (!videoUrl) { console.error("no video_url provided"); process.exit(1); }
+            const props = {
+              hook,
+              videoUrl,
+              brandName: process.env.BRAND_NAME || "Ruoth",
+              accentColor: process.env.ACCENT_COLOR || "#C0392B",
+            };
+            require("fs").writeFileSync("props.json", JSON.stringify(props));
+            console.log("props: hook=\"" + hook + "\" video=" + videoUrl);
+          '
+
+      - name: Render hook reel
+        run: |
+          mkdir -p out
+          npx remotion render HookIntroReel out/reel.mp4 --props=./props.json --concurrency=1 --log=verbose
+
+      - name: Upload rendered mp4
+        uses: actions/upload-artifact@v4
+        with:
+          name: hookreel-${{ inputs.task_id }}
+          path: out/reel.mp4
+          retention-days: 1
+          if-no-files-found: error
