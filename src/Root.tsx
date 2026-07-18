@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Composition, useCurrentFrame, Img, staticFile,
-  AbsoluteFill, Sequence, OffthreadVideo, interpolate,
+  AbsoluteFill, Sequence, OffthreadVideo, Audio, interpolate,
 } from 'remotion';
 import { getVideoMetadata } from '@remotion/media-utils';
 
@@ -105,6 +105,8 @@ type HookReelProps = {
   videoUrl: string;
   brandName?: string;
   accentColor?: string;
+  musicUrl?: string;     // royalty-free track baked over the whole reel (optional)
+  musicVolume?: number;  // 0..1 (kept moderate so any clip audio still reads)
 };
 
 const TypewriterHook: React.FC<{ hook: string; accentColor: string }> = ({ hook, accentColor }) => {
@@ -148,9 +150,12 @@ const HookIntroReel: React.FC<HookReelProps> = ({
   hook,
   videoUrl,
   accentColor = '#C0392B',
+  musicUrl,
+  musicVolume = 0.4,
 }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
+      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
       <Sequence durationInFrames={INTRO_FRAMES}>
         <TypewriterHook hook={hook} accentColor={accentColor} />
       </Sequence>

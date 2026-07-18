@@ -15,6 +15,10 @@ on:
       video_url:
         description: "URL of the base campaign video (mp4) that follows the intro"
         required: true
+      music_url:
+        description: "Royalty-free music track baked over the reel (optional)"
+        required: false
+        default: ""
       task_id:
         description: "Originating BEIA task id (names the artifact)"
         required: true
@@ -57,6 +61,7 @@ jobs:
         env:
           HOOK: ${{ inputs.hook }}
           VIDEO_URL: ${{ inputs.video_url }}
+          MUSIC_URL: ${{ inputs.music_url }}
           BRAND_NAME: ${{ inputs.brand_name }}
           ACCENT_COLOR: ${{ inputs.accent_color }}
         run: |
@@ -70,8 +75,9 @@ jobs:
               brandName: process.env.BRAND_NAME || "Ruoth",
               accentColor: process.env.ACCENT_COLOR || "#C0392B",
             };
+            if (process.env.MUSIC_URL) props.musicUrl = process.env.MUSIC_URL;
             require("fs").writeFileSync("props.json", JSON.stringify(props));
-            console.log("props: hook=\"" + hook + "\" video=" + videoUrl);
+            console.log("props: hook=\"" + hook + "\" video=" + videoUrl + " music=" + (process.env.MUSIC_URL||"(none)"));
           '
 
       - name: Render hook reel
