@@ -171,6 +171,73 @@ const HookIntroReel: React.FC<HookReelProps> = ({
   );
 };
 
+// ── HookImageReel ────────────────────────────────────────────────────────────
+// The STILL-media sibling of HookIntroReel. Legacy campaigns (Ruoth's Launch
+// Campaign) hold .jpg pins rather than .mp4 clips, so they can never satisfy a
+// video-source composition — but they are still perfectly repurposable: the
+// operator used to turn those stills into Shorts by hand. Same typed hook
+// intro, then the still held with a slow Ken Burns push so it reads as motion.
+// GENERIC — brand strings are props.
+
+type HookImageReelProps = {
+  hook: string;
+  imageUrl: string;
+  brandName?: string;
+  accentColor?: string;
+  musicUrl?: string;
+  musicVolume?: number;
+  holdSeconds?: number;
+};
+
+const IMAGE_HOLD_FRAMES = 240; // 8s @ 30fps
+
+const HookImageReel: React.FC<HookImageReelProps> = ({
+  hook,
+  imageUrl,
+  accentColor = '#C0392B',
+  musicUrl,
+  musicVolume = 0.4,
+  holdSeconds,
+}) => {
+  const frame = useCurrentFrame();
+  const hold = holdSeconds ? Math.round(holdSeconds * 30) : IMAGE_HOLD_FRAMES;
+  const sinceImage = Math.max(0, frame - INTRO_FRAMES);
+  // Slow push in — stills feel dead without movement on short-form.
+  const scale = interpolate(sinceImage, [0, hold], [1, 1.08], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
+      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
+      <Sequence durationInFrames={INTRO_FRAMES}>
+        <TypewriterHook hook={hook} accentColor={accentColor} />
+      </Sequence>
+      <Sequence from={INTRO_FRAMES}>
+        <AbsoluteFill
+          style={{
+            backgroundColor: '#000000',
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <Img
+            src={imageUrl}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              transform: `scale(${scale})`,
+            }}
+          />
+        </AbsoluteFill>
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
+
 // ── TriviaReel ───────────────────────────────────────────────────────────────
 // The CREATION surface (as opposed to HookIntroReel, which repurposes an
 // existing clip). Manufactures a faceless trivia Short from text alone:
@@ -545,6 +612,26 @@ export const RemotionRoot: React.FC = () => {
         }
         return { durationInFrames: INTRO_FRAMES + Math.max(1, vidFrames), fps };
       }}
+    />
+    <Composition
+      id="HookImageReel"
+      component={HookImageReel}
+      durationInFrames={INTRO_FRAMES + IMAGE_HOLD_FRAMES}
+      fps={30}
+      width={1080}
+      height={1920}
+      defaultProps={{
+        hook: 'Still guessing this ingredient?',
+        imageUrl: '',
+        brandName: 'Ruoth',
+        accentColor: '#C0392B',
+      }}
+      calculateMetadata={({ props }) => ({
+        durationInFrames:
+          INTRO_FRAMES +
+          (props.holdSeconds ? Math.round(props.holdSeconds * 30) : IMAGE_HOLD_FRAMES),
+        fps: 30,
+      })}
     />
     <Composition
       id="TriviaReel"
