@@ -171,9 +171,140 @@ const HookIntroReel: React.FC<HookReelProps> = ({
   );
 };
 
+// ── OfferCard ────────────────────────────────────────────────────────────────
+// The SELLING creative surface: a flexible product/offer card (still PNG) the
+// design team can compose into any layout. GENERIC — every field comes in as a
+// design spec prop authored by beia_core's creative worker (headline, price, CTA,
+// product image, palette, layout). This is NOT the editorial quote card; it is a
+// direct-response offer card. New layouts are added here without touching beia_core.
+
+type OfferCardProps = {
+  headline: string;
+  subhead?: string;
+  price?: string;        // pre-formatted, e.g. "£24" or "From £9/mo"
+  cta?: string;          // e.g. "Shop now", "Start free"
+  productImage?: string; // absolute URL of the real product shot (optional)
+  brandName?: string;
+  accentColor?: string;
+  background?: string;   // card background when there is no full-bleed image
+  textColor?: string;
+  layout?: 'image_top' | 'overlay' | 'text_only';
+};
+
+const OfferCard: React.FC<OfferCardProps> = ({
+  headline,
+  subhead,
+  price,
+  cta = 'Shop now',
+  productImage,
+  brandName = 'BEIA',
+  accentColor = '#C0392B',
+  background = '#FFFFFF',
+  textColor = '#111111',
+  layout,
+}) => {
+  const resolved: OfferCardProps['layout'] =
+    layout || (productImage ? 'image_top' : 'text_only');
+  const font = 'Arial, Helvetica, sans-serif';
+
+  const Brand = (
+    <p style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: 2,
+      color: accentColor, fontFamily: font, textTransform: 'uppercase' }}>
+      {brandName}
+    </p>
+  );
+  const Price = price ? (
+    <span style={{ display: 'inline-block', background: accentColor, color: '#FFFFFF',
+      fontSize: 44, fontWeight: 700, padding: '10px 28px', borderRadius: 12,
+      fontFamily: font }}>{price}</span>
+  ) : null;
+  const Cta = (
+    <span style={{ display: 'inline-block', background: textColor, color: background,
+      fontSize: 38, fontWeight: 700, padding: '18px 44px', borderRadius: 60,
+      fontFamily: font }}>{cta} →</span>
+  );
+
+  if (resolved === 'overlay' && productImage) {
+    return (
+      <AbsoluteFill style={{ backgroundColor: '#000' }}>
+        <Img src={productImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <AbsoluteFill style={{
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.82) 100%)',
+        }} />
+        <AbsoluteFill style={{ padding: 80, justifyContent: 'space-between' }}>
+          <div>{Brand}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            <p style={{ margin: 0, fontSize: 88, fontWeight: 700, lineHeight: 1.05,
+              color: '#FFFFFF', fontFamily: font }}>{headline}</p>
+            {subhead ? <p style={{ margin: 0, fontSize: 40, lineHeight: 1.25,
+              color: 'rgba(255,255,255,0.92)', fontFamily: font }}>{subhead}</p> : null}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginTop: 8 }}>
+              {Price}{Cta}
+            </div>
+          </div>
+        </AbsoluteFill>
+      </AbsoluteFill>
+    );
+  }
+
+  if (resolved === 'image_top' && productImage) {
+    return (
+      <AbsoluteFill style={{ backgroundColor: background }}>
+        <div style={{ height: '58%', width: '100%', backgroundColor: '#000' }}>
+          <Img src={productImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+        <div style={{ height: '42%', padding: 72, display: 'flex',
+          flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {Brand}
+            <p style={{ margin: 0, fontSize: 66, fontWeight: 700, lineHeight: 1.08,
+              color: textColor, fontFamily: font }}>{headline}</p>
+            {subhead ? <p style={{ margin: 0, fontSize: 34, lineHeight: 1.25,
+              color: 'rgba(17,17,17,0.7)', fontFamily: font }}>{subhead}</p> : null}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>{Price}{Cta}</div>
+        </div>
+      </AbsoluteFill>
+    );
+  }
+
+  // text_only — bold typographic offer card, no product shot
+  return (
+    <AbsoluteFill style={{ backgroundColor: background, padding: 90,
+      justifyContent: 'space-between' }}>
+      <div>{Brand}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <p style={{ margin: 0, fontSize: 96, fontWeight: 700, lineHeight: 1.04,
+          color: textColor, fontFamily: font }}>{headline}</p>
+        {subhead ? <p style={{ margin: 0, fontSize: 42, lineHeight: 1.25,
+          color: 'rgba(17,17,17,0.7)', fontFamily: font }}>{subhead}</p> : null}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>{Price}{Cta}</div>
+    </AbsoluteFill>
+  );
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+    <Composition
+      id="OfferCard"
+      component={OfferCard}
+      durationInFrames={1}
+      fps={30}
+      width={1080}
+      height={1350}
+      defaultProps={{
+        headline: 'Your kitchen wall is boring. Here is the fix.',
+        subhead: 'Neo-classical kitchen print, ready to hang.',
+        price: '£24',
+        cta: 'Shop now',
+        brandName: 'Ruoth',
+        accentColor: '#C0392B',
+        background: '#FFFFFF',
+        textColor: '#111111',
+      }}
+    />
     <Composition
       id="HookIntroReel"
       component={HookIntroReel}
