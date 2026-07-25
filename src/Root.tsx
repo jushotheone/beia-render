@@ -171,6 +171,211 @@ const HookIntroReel: React.FC<HookReelProps> = ({
   );
 };
 
+// ── TriviaReel ───────────────────────────────────────────────────────────────
+// The CREATION surface (as opposed to HookIntroReel, which repurposes an
+// existing clip). Manufactures a faceless trivia Short from text alone:
+// branded intro -> question -> answer reveal -> CTA, narrated by a free
+// CPU-only TTS voice with kinetic captions synced to it. GENERIC — every
+// brand string comes in as a prop, so any brand reuses this composition.
+
+type Caption = { text: string; startMs: number; endMs: number };
+
+type TriviaReelProps = {
+  question: string;
+  answer: string;
+  pillar?: string;
+  narrationUrl?: string;   // absolute URL, else staticFile('narration.wav')
+  captions?: Caption[];
+  brandName?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  siteUrl?: string;
+  musicUrl?: string;
+  musicVolume?: number;
+};
+
+const TRIVIA_FPS = 30;
+const TRIVIA_INTRO_FRAMES = 60;   // 2s branded intro
+const TRIVIA_OUTRO_FRAMES = 60;   // 2s CTA end card
+
+const KineticCaptions: React.FC<{ captions: Caption[]; accentColor: string }> = ({
+  captions,
+  accentColor,
+}) => {
+  const frame = useCurrentFrame();
+  const ms = (frame / TRIVIA_FPS) * 1000;
+  const active = captions.find((c) => ms >= c.startMs && ms <= c.endMs);
+  if (!active) return null;
+
+  // Pop in over the first 120ms of the caption.
+  const since = ms - active.startMs;
+  const scale = interpolate(since, [0, 120], [0.92, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+
+  return (
+    <AbsoluteFill
+      style={{
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        paddingBottom: 320,
+      }}
+    >
+      <div
+        style={{
+          transform: `scale(${scale})`,
+          maxWidth: '84%',
+          textAlign: 'center',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: 62,
+          fontWeight: 700,
+          lineHeight: 1.25,
+          color: '#FFFFFF',
+          textShadow: '0 4px 18px rgba(0,0,0,0.55)',
+          background: 'rgba(0,0,0,0.42)',
+          borderRadius: 24,
+          padding: '18px 30px',
+          borderBottom: `6px solid ${accentColor}`,
+        }}
+      >
+        {active.text}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+const TriviaReel: React.FC<TriviaReelProps> = ({
+  question,
+  answer,
+  pillar = '',
+  narrationUrl,
+  captions = [],
+  brandName = 'Ruoth',
+  accentColor = '#C0392B',
+  logoUrl,
+  siteUrl = '',
+  musicUrl,
+  musicVolume = 0.16,
+}) => {
+  const frame = useCurrentFrame();
+  const font = 'Arial, Helvetica, sans-serif';
+
+  // Answer reveals for the last third of the narrated body.
+  const narrationFrames = captions.length
+    ? Math.round((captions[captions.length - 1].endMs / 1000) * TRIVIA_FPS)
+    : 8 * TRIVIA_FPS;
+  const revealAt = TRIVIA_INTRO_FRAMES + Math.round(narrationFrames * 0.62);
+  const revealed = frame >= revealAt;
+
+  const audioSrc = narrationUrl || staticFile('narration.wav');
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#0E0E0E' }}>
+      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
+      <Sequence from={TRIVIA_INTRO_FRAMES}>
+        <Audio src={audioSrc} />
+      </Sequence>
+
+      {/* Branded intro */}
+      <Sequence durationInFrames={TRIVIA_INTRO_FRAMES}>
+        <AbsoluteFill
+          style={{
+            backgroundColor: '#FFFFFF',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 80,
+          }}
+        >
+          {logoUrl ? (
+            <Img src={logoUrl} style={{ width: 260, marginBottom: 40 }} />
+          ) : null}
+          <div
+            style={{
+              fontFamily: font,
+              fontSize: 60,
+              fontWeight: 700,
+              color: '#111111',
+              textAlign: 'center',
+              letterSpacing: 2,
+            }}
+          >
+            {brandName.toUpperCase()} RECIPE TRIVIA
+          </div>
+          {pillar ? (
+            <div
+              style={{
+                fontFamily: font,
+                fontSize: 40,
+                marginTop: 20,
+                color: accentColor,
+                fontWeight: 600,
+              }}
+            >
+              {pillar}
+            </div>
+          ) : null}
+        </AbsoluteFill>
+      </Sequence>
+
+      {/* Question + answer reveal, captions over the top */}
+      <Sequence from={TRIVIA_INTRO_FRAMES}>
+        <AbsoluteFill style={{ padding: 80, justifyContent: 'flex-start' }}>
+          <div
+            style={{
+              fontFamily: font,
+              fontSize: 68,
+              fontWeight: 700,
+              color: '#FFFFFF',
+              lineHeight: 1.3,
+              marginTop: 140,
+              textAlign: 'center',
+            }}
+          >
+            {question}
+          </div>
+          {revealed ? (
+            <div
+              style={{
+                fontFamily: font,
+                fontSize: 58,
+                fontWeight: 700,
+                color: accentColor,
+                textAlign: 'center',
+                marginTop: 60,
+                background: 'rgba(255,255,255,0.96)',
+                borderRadius: 20,
+                padding: '24px 30px',
+              }}
+            >
+              {answer}
+            </div>
+          ) : null}
+        </AbsoluteFill>
+        <KineticCaptions captions={captions} accentColor={accentColor} />
+      </Sequence>
+
+      {/* CTA end card */}
+      <Sequence from={TRIVIA_INTRO_FRAMES + narrationFrames}>
+        <AbsoluteFill
+          style={{
+            backgroundColor: '#FFFFFF',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          {logoUrl ? (
+            <Img src={logoUrl} style={{ width: 300, marginBottom: 36 }} />
+          ) : null}
+          <div style={{ fontFamily: font, fontSize: 52, color: accentColor, fontWeight: 700 }}>
+            {siteUrl}
+          </div>
+        </AbsoluteFill>
+      </Sequence>
+    </AbsoluteFill>
+  );
+};
+
 // ── OfferCard ────────────────────────────────────────────────────────────────
 // The SELLING creative surface: a flexible product/offer card (still PNG) the
 // design team can compose into any layout. GENERIC — every field comes in as a
@@ -330,6 +535,33 @@ export const RemotionRoot: React.FC = () => {
           }
         }
         return { durationInFrames: INTRO_FRAMES + Math.max(1, vidFrames), fps };
+      }}
+    />
+    <Composition
+      id="TriviaReel"
+      component={TriviaReel}
+      durationInFrames={TRIVIA_INTRO_FRAMES + 240 + TRIVIA_OUTRO_FRAMES}
+      fps={TRIVIA_FPS}
+      width={1080}
+      height={1920}
+      defaultProps={{
+        question: 'True or false: most home-based food businesses undercharge by 25–40%?',
+        answer: 'True — and costing it properly is the fix.',
+        pillar: 'Business & Costing',
+        brandName: 'Ruoth',
+        accentColor: '#C0392B',
+        siteUrl: 'www.ruothstore.com',
+        captions: [] as Caption[],
+      }}
+      calculateMetadata={({ props }) => {
+        const caps = props.captions || [];
+        const body = caps.length
+          ? Math.round((caps[caps.length - 1].endMs / 1000) * TRIVIA_FPS)
+          : 240;
+        return {
+          durationInFrames: TRIVIA_INTRO_FRAMES + Math.max(1, body) + TRIVIA_OUTRO_FRAMES,
+          fps: TRIVIA_FPS,
+        };
       }}
     />
     <Composition
