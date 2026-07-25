@@ -61,11 +61,29 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # Music is a nice-to-have; it must never be able to fail a render. The
+      # track host (incompetech) intermittently times out from GitHub runners,
+      # which killed a whole reel mid-render. Probe it first and drop it if it
+      # is not reachable — a silent video beats no video.
+      - name: Check music reachability
+        id: music
+        env:
+          MUSIC_URL: ${{ inputs.music_url }}
+        run: |
+          if [ -z "$MUSIC_URL" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "no music requested"; exit 0
+          fi
+          if curl -sfL --retry 3 --retry-delay 2 --max-time 45 -o /tmp/music.bin "$MUSIC_URL"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "music reachable"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "music UNREACHABLE — rendering silent"
+          fi
+
       - name: Build render props
         env:
           HOOK: ${{ inputs.hook }}
           IMAGE_URL: ${{ inputs.image_url }}
-          MUSIC_URL: ${{ inputs.music_url }}
+          MUSIC_URL: ${{ steps.music.outputs.ok == 'true' && inputs.music_url || '' }}
           HOLD_SECONDS: ${{ inputs.hold_seconds }}
           BRAND_NAME: ${{ inputs.brand_name }}
           ACCENT_COLOR: ${{ inputs.accent_color }}

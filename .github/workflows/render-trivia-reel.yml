@@ -123,12 +123,28 @@ jobs:
           python scripts/generate_narration.py --spec narration_spec.json --outdir public
           ls -la public/
 
+      # Music must never be able to fail a render — the track host intermittently
+      # times out from GitHub runners. Probe it; drop it if unreachable.
+      - name: Check music reachability
+        id: music
+        env:
+          MUSIC_URL: ${{ inputs.music_url }}
+        run: |
+          if [ -z "$MUSIC_URL" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "no music requested"; exit 0
+          fi
+          if curl -sfL --retry 3 --retry-delay 2 --max-time 45 -o /tmp/music.bin "$MUSIC_URL"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "music reachable"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "music UNREACHABLE — rendering silent"
+          fi
+
       - name: Build render props
         env:
           QUESTION: ${{ inputs.question }}
           ANSWER: ${{ inputs.answer }}
           PILLAR: ${{ inputs.pillar }}
-          MUSIC_URL: ${{ inputs.music_url }}
+          MUSIC_URL: ${{ steps.music.outputs.ok == 'true' && inputs.music_url || '' }}
           LOGO_URL: ${{ inputs.logo_url }}
           SITE_URL: ${{ inputs.site_url }}
           BRAND_NAME: ${{ inputs.brand_name }}
