@@ -261,6 +261,14 @@ const TriviaReel: React.FC<TriviaReelProps> = ({
   const frame = useCurrentFrame();
   const font = 'Arial, Helvetica, sans-serif';
 
+  // The voice reads the on-screen question and answer verbatim, so captioning
+  // those same lines double-prints them. Captions exist for narration that ADDS
+  // something ("Think about it."), not to echo text already on screen.
+  const norm = (s: string) =>
+    (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const onScreen = new Set([norm(question), norm(answer)]);
+  const spokenOnly = captions.filter((c) => !onScreen.has(norm(c.text)));
+
   // Answer reveals for the last third of the narrated body.
   const narrationFrames = captions.length
     ? Math.round((captions[captions.length - 1].endMs / 1000) * TRIVIA_FPS)
@@ -320,7 +328,9 @@ const TriviaReel: React.FC<TriviaReelProps> = ({
 
       {/* Question + answer reveal, captions over the top */}
       <Sequence from={TRIVIA_INTRO_FRAMES}>
-        <AbsoluteFill style={{ padding: 80, justifyContent: 'flex-start' }}>
+        <AbsoluteFill
+          style={{ padding: 80, justifyContent: 'center', paddingBottom: 420 }}
+        >
           <div
             style={{
               fontFamily: font,
@@ -328,7 +338,6 @@ const TriviaReel: React.FC<TriviaReelProps> = ({
               fontWeight: 700,
               color: '#FFFFFF',
               lineHeight: 1.3,
-              marginTop: 140,
               textAlign: 'center',
             }}
           >
@@ -352,7 +361,7 @@ const TriviaReel: React.FC<TriviaReelProps> = ({
             </div>
           ) : null}
         </AbsoluteFill>
-        <KineticCaptions captions={captions} accentColor={accentColor} />
+        <KineticCaptions captions={spokenOnly} accentColor={accentColor} />
       </Sequence>
 
       {/* CTA end card */}
