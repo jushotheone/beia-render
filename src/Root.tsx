@@ -13,6 +13,17 @@ import { getVideoMetadata } from '@remotion/media-utils';
 const CARD_DURATION = 150; // 5s @ 30fps
 const FADE_DURATION = 20;
 
+// Remote media fetched DURING a render is a single point of failure: the music
+// host intermittently times out from CI runners and Remotion treats a failed
+// <Audio> fetch as fatal, killing an otherwise-finished video. So CI downloads
+// the track first and passes a bare filename; anything without a scheme is
+// resolved out of public/ and never leaves the runner. Absolute URLs still work
+// for callers that want them.
+const resolveMedia = (src?: string): string | undefined => {
+  if (!src) return undefined;
+  return /^https?:\/\//i.test(src) ? src : staticFile(src);
+};
+
 type ReelProps = {
   images: string[];
   brandName?: string;
@@ -155,7 +166,7 @@ const HookIntroReel: React.FC<HookReelProps> = ({
 }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
-      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
       <Sequence durationInFrames={INTRO_FRAMES}>
         <TypewriterHook hook={hook} accentColor={accentColor} />
       </Sequence>
@@ -210,7 +221,7 @@ const HookImageReel: React.FC<HookImageReelProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
-      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
       <Sequence durationInFrames={INTRO_FRAMES}>
         <TypewriterHook hook={hook} accentColor={accentColor} />
       </Sequence>
@@ -347,7 +358,7 @@ const TriviaReel: React.FC<TriviaReelProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#0E0E0E' }}>
-      {musicUrl ? <Audio src={musicUrl} volume={musicVolume} loop /> : null}
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
       <Sequence from={TRIVIA_INTRO_FRAMES}>
         <Audio src={audioSrc} />
       </Sequence>

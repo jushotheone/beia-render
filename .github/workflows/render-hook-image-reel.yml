@@ -73,8 +73,11 @@ jobs:
           if [ -z "$MUSIC_URL" ]; then
             echo "ok=false" >> "$GITHUB_OUTPUT"; echo "no music requested"; exit 0
           fi
-          if curl -sfL --retry 3 --retry-delay 2 --max-time 45 -o /tmp/music.bin "$MUSIC_URL"; then
-            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "music reachable"
+          mkdir -p public
+          # Download it HERE so the renderer never fetches over the network:
+          # curl succeeding does not mean Remotion's own fetch will succeed.
+          if curl -sfL --retry 3 --retry-delay 2 --max-time 45 -o public/music.mp3 "$MUSIC_URL"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "music downloaded to public/music.mp3"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"; echo "music UNREACHABLE — rendering silent"
           fi
@@ -83,7 +86,7 @@ jobs:
         env:
           HOOK: ${{ inputs.hook }}
           IMAGE_URL: ${{ inputs.image_url }}
-          MUSIC_URL: ${{ steps.music.outputs.ok == 'true' && inputs.music_url || '' }}
+          MUSIC_URL: ${{ steps.music.outputs.ok == 'true' && 'music.mp3' || '' }}
           HOLD_SECONDS: ${{ inputs.hold_seconds }}
           BRAND_NAME: ${{ inputs.brand_name }}
           ACCENT_COLOR: ${{ inputs.accent_color }}
