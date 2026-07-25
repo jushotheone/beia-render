@@ -117,9 +117,10 @@ jobs:
       - name: Synthesize narration + exact caption timings
         run: |
           mkdir -p public
-          DUR=$(python scripts/generate_narration.py --spec narration_spec.json --outdir public)
-          echo "narration seconds: $DUR"
-          echo "NARRATION_SECONDS=$DUR" >> "$GITHUB_ENV"
+          # Do NOT capture stdout into a shell var: kokoro downloads a spaCy model
+          # on first use and prints to stdout, so the duration line is not alone.
+          # The render props step reads public/captions.json for the real timings.
+          python scripts/generate_narration.py --spec narration_spec.json --outdir public
           ls -la public/
 
       - name: Build render props
