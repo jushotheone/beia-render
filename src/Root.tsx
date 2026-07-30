@@ -628,6 +628,7 @@ type EpisodeSpec = {
   cta_type?: string;
   cta?: string;
   visual_brief?: string;
+  image_url?: string | null;
   beats?: EpisodeBeat[];
   avatar_treatment?: string;
   presenter_clips?: PresenterClip[];
@@ -679,9 +680,9 @@ export const triviaEpisodeFrames = (episode: EpisodeSpec): number => {
   return spans[spans.length - 1].to + Math.round(0.6 * EP_FPS);
 };
 
-const EpCaption: React.FC<{ text: string; accentColor: string; bottom: number }> = ({
-  text, accentColor, bottom,
-}) => {
+const EpCaption: React.FC<{
+  text: string; accentColor: string; bottom: number; onLight?: boolean;
+}> = ({ text, accentColor, bottom, onLight = false }) => {
   if (!text) return null;
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: bottom }}>
@@ -693,9 +694,9 @@ const EpCaption: React.FC<{ text: string; accentColor: string; bottom: number }>
           fontSize: 58,
           fontWeight: 700,
           lineHeight: 1.22,
-          color: '#FFFFFF',
-          textShadow: '0 4px 18px rgba(0,0,0,0.6)',
-          background: 'rgba(0,0,0,0.5)',
+          color: onLight ? '#111111' : '#FFFFFF',
+          textShadow: onLight ? 'none' : '0 4px 18px rgba(0,0,0,0.6)',
+          background: onLight ? 'rgba(255,255,255,0.88)' : 'rgba(0,0,0,0.5)',
           borderRadius: 22,
           padding: '16px 28px',
           borderBottom: `6px solid ${accentColor}`,
@@ -715,22 +716,26 @@ const EpStage: React.FC<{
   revealed: boolean;
   accentColor: string;
   pressureProgress: number;
-}> = ({ episode, phase, revealed, accentColor, pressureProgress }) => {
+  hasStill: boolean;
+  onLight: boolean;
+}> = ({ episode, phase, revealed, accentColor, pressureProgress, hasStill, onLight }) => {
   const font = 'Arial, Helvetica, sans-serif';
+  const ink = onLight ? '#111111' : '#FFFFFF';
   const mechanic = episode.mechanic || 'reveal';
   const choices = episode.choices || [];
   const correct = episode.correct_index;
 
   // Nothing but the hook is on screen during the hook beat: the first frame is
   // the challenge, and a question header competing with it splits attention.
+  // On a visual format the IMAGE is the challenge, so it is already behind this.
   if (phase === 'hook') {
     return (
       <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: 70 }}>
         <div
           style={{
-            fontFamily: font, fontSize: 92, fontWeight: 700, color: '#FFFFFF',
+            fontFamily: font, fontSize: 92, fontWeight: 700, color: ink,
             textAlign: 'center', lineHeight: 1.15,
-            textShadow: '0 6px 24px rgba(0,0,0,0.5)',
+            textShadow: onLight ? 'none' : '0 6px 24px rgba(0,0,0,0.5)',
           }}
         >
           {episode.hook}
@@ -742,7 +747,7 @@ const EpStage: React.FC<{
   const Question = (
     <div
       style={{
-        fontFamily: font, fontSize: 60, fontWeight: 700, color: '#FFFFFF',
+        fontFamily: font, fontSize: 60, fontWeight: 700, color: ink,
         textAlign: 'center', lineHeight: 1.24, marginBottom: 46,
       }}
     >
@@ -827,8 +832,17 @@ const EpStage: React.FC<{
     body = Figures;
   }
 
+  // With a still behind it the game moves to the top third, so the picture the
+  // viewer is being asked to identify is not covered by the question about it.
   return (
-    <AbsoluteFill style={{ justifyContent: 'center', padding: 70, paddingBottom: 380 }}>
+    <AbsoluteFill
+      style={{
+        justifyContent: hasStill ? 'flex-start' : 'center',
+        padding: 70,
+        paddingTop: hasStill ? 150 : 70,
+        paddingBottom: 380,
+      }}
+    >
       {Question}
       {body}
       {Countdown}
@@ -871,9 +885,53 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
   const hasBeatAudio = beats.some((b) => b.audio_url);
 
+  // On a visual format the picture IS the challenge, so it sits behind every
+  // beat from frame 0 — the viewer must never wait for the thing they are being
+  // asked to identify.
+  //
+  // A silhouette quiz stays silhouetted until the reveal, then resolves to the
+  // real photograph. That is the format's whole payoff, and it is one CSS
+  // filter rather than a second generated image.
+  const still = episode.image_url ? resolveMedia(episode.image_url) : undefined;
+  const isSilhouette = episode.format === 'silhouette_quiz';
+  // The silhouette field is light until the reveal, so white text would vanish
+  // into it. Everything else in the composition sits on dark.
+  const onLight = Boolean(still) && isSilhouette && !revealed;
+
   return (
     <AbsoluteFill style={{ backgroundColor: '#0B0B0C' }}>
       {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
+
+      {still && isSilhouette ? (
+        // A silhouette is an ISOLATED object on a light field, never a
+        // full-bleed photo: `cover` plus brightness(0) fills the frame with
+        // black and shows the viewer nothing. The still carries a real alpha
+        // channel, so blackening it leaves only the shape. At the reveal the
+        // filter lifts and the same asset becomes the photograph — which is the
+        // whole payoff of the format, from one image.
+        <AbsoluteFill style={{ backgroundColor: revealed ? '#0B0B0C' : '#EFEFEF' }}>
+          <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: 120 }}>
+            <Img
+              src={still}
+              style={{
+                maxWidth: '78%', maxHeight: '58%', objectFit: 'contain',
+                filter: revealed ? 'none' : 'brightness(0)',
+              }}
+            />
+          </AbsoluteFill>
+        </AbsoluteFill>
+      ) : still ? (
+        <AbsoluteFill>
+          <Img src={still} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {/* Scrim: captions and choices must stay readable over any photo. */}
+          <AbsoluteFill
+            style={{
+              background:
+                'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0.75) 100%)',
+            }}
+          />
+        </AbsoluteFill>
+      ) : null}
 
       {/* Per-beat narration, each starting exactly where its beat starts. */}
       {hasBeatAudio
@@ -897,6 +955,8 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         revealed={revealed}
         accentColor={accentColor}
         pressureProgress={pressureProgress}
+        hasStill={Boolean(still)}
+        onLight={onLight}
       />
 
       {/* Presenter composites OVER the game and never covers it — bottom-right,
@@ -913,7 +973,12 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
       {/* The hook beat carries no caption: it is already the whole screen. */}
       {phase === 'hook' ? null : (
-        <EpCaption text={String(active.display || '')} accentColor={accentColor} bottom={190} />
+        <EpCaption
+          text={String(active.display || '')}
+          accentColor={accentColor}
+          bottom={190}
+          onLight={onLight}
+        />
       )}
 
       {/* Persistent brand mark — present in every frame, selling in none of
@@ -923,7 +988,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           {logoUrl ? (
             <Img src={logoUrl} style={{ width: 120, opacity: 0.85 }} />
           ) : (
-            <div style={{ fontFamily: font, fontSize: 30, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+            <div style={{ fontFamily: font, fontSize: 30, color: onLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
               {brandName}
             </div>
           )}
