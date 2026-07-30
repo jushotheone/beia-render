@@ -576,6 +576,371 @@ const OfferCard: React.FC<OfferCardProps> = ({
   );
 };
 
+// ── TriviaEpisode ────────────────────────────────────────────────────────────
+// The retention rebuild of TriviaReel.
+//
+// TriviaReel narrated a statement: branded intro card, question, answer, end
+// card. There was nothing to stay for, because the viewer was told a fact rather
+// than given something to solve — and the first two seconds, which is the entire
+// decision window, were spent on a logo.
+//
+// This composition renders a GAME laid out on a beat timeline:
+//   hook       frame 0. No logo, no greeting. The challenge lands immediately.
+//   challenge  what the viewer has to solve.
+//   clue       progressive narrowing, 1-3 beats.
+//   pressure   countdown — the moment before the answer.
+//   reveal     the answer, visually unmistakable.
+//   payoff     why it is correct. This is the beat that builds authority.
+//   cta        one action, and only when a CTA type was assigned.
+//
+// Beat durations come from real measured narration, not estimates, so captions
+// and reveals land on the voice. GENERIC: the mechanic decides the stage, so one
+// composition serves every format, and every brand string arrives as a prop.
+
+type EpisodeBeat = {
+  beat: string;
+  spoken?: string;
+  display?: string;
+  audio_url?: string | null;
+  duration_seconds?: number | null;
+};
+
+type PresenterClip = {
+  beat_index: number;
+  beat?: string;
+  video_url: string;
+  duration_seconds?: number | null;
+};
+
+type EpisodeSpec = {
+  format?: string;
+  mechanic?: string;
+  pillar?: string;
+  difficulty?: string;
+  hook?: string;
+  question?: string;
+  answer?: string;
+  payoff?: string;
+  choices?: string[];
+  correct_index?: number | null;
+  correct_order?: number[] | null;
+  figures?: { label: string; value: string }[];
+  cta_type?: string;
+  cta?: string;
+  visual_brief?: string;
+  beats?: EpisodeBeat[];
+  avatar_treatment?: string;
+  presenter_clips?: PresenterClip[];
+  duration_target?: number[];
+};
+
+type TriviaEpisodeProps = {
+  episode: EpisodeSpec;
+  brandName?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  siteUrl?: string;
+  musicUrl?: string;
+  musicVolume?: number;
+  narrationUrl?: string; // single fallback track when there is no per-beat audio
+};
+
+const EP_FPS = 30;
+
+// Speech rate measured from real narration takes, used ONLY when a beat has no
+// measured audio (the free-voice fallback path). Deliberately a named constant:
+// a wrong value here desyncs every beat after it.
+const EP_WORDS_PER_SECOND = 2.4;
+const EP_MIN_BEAT_SECONDS = 0.9;
+
+const epBeatSeconds = (b: EpisodeBeat): number => {
+  if (b.duration_seconds && b.duration_seconds > 0) return b.duration_seconds;
+  const words = (b.spoken || b.display || '').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(EP_MIN_BEAT_SECONDS, words / EP_WORDS_PER_SECOND);
+};
+
+// Beat index -> [startFrame, endFrame). One source of truth for timing, shared
+// by the audio, the stage and the captions so they cannot drift apart.
+const epTimeline = (beats: EpisodeBeat[]) => {
+  let at = 0;
+  return beats.map((b) => {
+    const dur = Math.max(1, Math.round(epBeatSeconds(b) * EP_FPS));
+    const span = { from: at, to: at + dur };
+    at += dur;
+    return span;
+  });
+};
+
+export const triviaEpisodeFrames = (episode: EpisodeSpec): number => {
+  const beats = episode?.beats || [];
+  if (!beats.length) return 30 * EP_FPS;
+  const spans = epTimeline(beats);
+  // A held final frame stops the last word being clipped by the encoder.
+  return spans[spans.length - 1].to + Math.round(0.6 * EP_FPS);
+};
+
+const EpCaption: React.FC<{ text: string; accentColor: string; bottom: number }> = ({
+  text, accentColor, bottom,
+}) => {
+  if (!text) return null;
+  return (
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: bottom }}>
+      <div
+        style={{
+          maxWidth: '86%',
+          textAlign: 'center',
+          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontSize: 58,
+          fontWeight: 700,
+          lineHeight: 1.22,
+          color: '#FFFFFF',
+          textShadow: '0 4px 18px rgba(0,0,0,0.6)',
+          background: 'rgba(0,0,0,0.5)',
+          borderRadius: 22,
+          padding: '16px 28px',
+          borderBottom: `6px solid ${accentColor}`,
+        }}
+      >
+        {text}
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// The stage is what the viewer plays on, and it is chosen by MECHANIC rather
+// than by format — which is why 18 formats do not need 18 templates.
+const EpStage: React.FC<{
+  episode: EpisodeSpec;
+  phase: string;
+  revealed: boolean;
+  accentColor: string;
+  pressureProgress: number;
+}> = ({ episode, phase, revealed, accentColor, pressureProgress }) => {
+  const font = 'Arial, Helvetica, sans-serif';
+  const mechanic = episode.mechanic || 'reveal';
+  const choices = episode.choices || [];
+  const correct = episode.correct_index;
+
+  // Nothing but the hook is on screen during the hook beat: the first frame is
+  // the challenge, and a question header competing with it splits attention.
+  if (phase === 'hook') {
+    return (
+      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: 70 }}>
+        <div
+          style={{
+            fontFamily: font, fontSize: 92, fontWeight: 700, color: '#FFFFFF',
+            textAlign: 'center', lineHeight: 1.15,
+            textShadow: '0 6px 24px rgba(0,0,0,0.5)',
+          }}
+        >
+          {episode.hook}
+        </div>
+      </AbsoluteFill>
+    );
+  }
+
+  const Question = (
+    <div
+      style={{
+        fontFamily: font, fontSize: 60, fontWeight: 700, color: '#FFFFFF',
+        textAlign: 'center', lineHeight: 1.24, marginBottom: 46,
+      }}
+    >
+      {episode.question}
+    </div>
+  );
+
+  const Choices = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, width: '100%' }}>
+      {choices.map((c, i) => {
+        const isRight = revealed && correct === i;
+        const isWrong = revealed && correct !== null && correct !== i;
+        return (
+          <div
+            key={i}
+            style={{
+              fontFamily: font, fontSize: 48, fontWeight: 600,
+              color: isWrong ? 'rgba(255,255,255,0.35)' : '#FFFFFF',
+              background: isRight ? accentColor : 'rgba(255,255,255,0.10)',
+              border: `3px solid ${isRight ? accentColor : 'rgba(255,255,255,0.22)'}`,
+              borderRadius: 18, padding: '22px 28px', textAlign: 'left',
+            }}
+          >
+            <span style={{ opacity: 0.6, marginRight: 18 }}>
+              {String.fromCharCode(65 + i)}
+            </span>
+            {c}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const Figures = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
+      {(episode.figures || []).map((f, i) => (
+        <div
+          key={i}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            fontFamily: font, fontSize: 48, color: '#FFFFFF',
+            background: 'rgba(255,255,255,0.08)', borderRadius: 14,
+            padding: '18px 26px',
+          }}
+        >
+          <span style={{ opacity: 0.75 }}>{f.label}</span>
+          <span style={{ fontWeight: 700 }}>{f.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  const Answer = revealed ? (
+    <div
+      style={{
+        fontFamily: font, fontSize: 62, fontWeight: 700, color: '#FFFFFF',
+        background: accentColor, borderRadius: 20, padding: '26px 32px',
+        textAlign: 'center', marginTop: 34,
+      }}
+    >
+      {episode.answer}
+    </div>
+  ) : null;
+
+  // The countdown exists to create tension at the exact beat viewers drop.
+  const Countdown =
+    phase === 'pressure' ? (
+      <div style={{ marginTop: 40, width: '100%', height: 14, background: 'rgba(255,255,255,0.15)', borderRadius: 8 }}>
+        <div
+          style={{
+            width: `${Math.max(0, 1 - pressureProgress) * 100}%`,
+            height: '100%', background: accentColor, borderRadius: 8,
+          }}
+        />
+      </div>
+    ) : null;
+
+  let body: React.ReactNode = null;
+  if (mechanic === 'choices' || mechanic === 'verdict' || mechanic === 'ordering') {
+    body = choices.length ? Choices : null;
+  } else if (mechanic === 'calculation') {
+    body = Figures;
+  }
+
+  return (
+    <AbsoluteFill style={{ justifyContent: 'center', padding: 70, paddingBottom: 380 }}>
+      {Question}
+      {body}
+      {Countdown}
+      {Answer}
+    </AbsoluteFill>
+  );
+};
+
+const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
+  episode,
+  brandName = 'Ruoth',
+  accentColor = '#C0392B',
+  logoUrl,
+  siteUrl = '',
+  musicUrl,
+  musicVolume = 0.14,
+  narrationUrl,
+}) => {
+  const frame = useCurrentFrame();
+  const font = 'Arial, Helvetica, sans-serif';
+  const beats = episode?.beats || [];
+  const spans = epTimeline(beats);
+
+  const activeIndex = Math.max(
+    0,
+    spans.findIndex((s) => frame >= s.from && frame < s.to),
+  );
+  const active = beats[activeIndex] || {};
+  const phase = String(active.beat || 'hook');
+  const revealed = beats
+    .slice(0, activeIndex + 1)
+    .some((b) => ['reveal', 'payoff', 'cta'].includes(String(b.beat)));
+
+  const span = spans[activeIndex] || { from: 0, to: 1 };
+  const pressureProgress = (frame - span.from) / Math.max(1, span.to - span.from);
+
+  const presenter = (episode.presenter_clips || []).find(
+    (p) => p.beat_index === activeIndex,
+  );
+
+  const hasBeatAudio = beats.some((b) => b.audio_url);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: '#0B0B0C' }}>
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
+
+      {/* Per-beat narration, each starting exactly where its beat starts. */}
+      {hasBeatAudio
+        ? beats.map((b, i) =>
+            b.audio_url ? (
+              <Sequence key={i} from={spans[i].from} durationInFrames={spans[i].to - spans[i].from}>
+                {/* resolveMedia, not the raw URL: CI downloads every asset up
+                    front and passes bare filenames, because a fetch that fails
+                    mid-render kills an otherwise finished episode. */}
+                <Audio src={resolveMedia(b.audio_url)!} />
+              </Sequence>
+            ) : null,
+          )
+        : narrationUrl
+        ? <Audio src={resolveMedia(narrationUrl)!} />
+        : null}
+
+      <EpStage
+        episode={episode}
+        phase={phase}
+        revealed={revealed}
+        accentColor={accentColor}
+        pressureProgress={pressureProgress}
+      />
+
+      {/* Presenter composites OVER the game and never covers it — bottom-right,
+          bounded, so the trivia stays the star (section 12). */}
+      {presenter ? (
+        <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'flex-end', padding: 40 }}>
+          <OffthreadVideo
+            src={resolveMedia(presenter.video_url)!}
+            style={{ width: 420, borderRadius: 20 }}
+            muted
+          />
+        </AbsoluteFill>
+      ) : null}
+
+      {/* The hook beat carries no caption: it is already the whole screen. */}
+      {phase === 'hook' ? null : (
+        <EpCaption text={String(active.display || '')} accentColor={accentColor} bottom={190} />
+      )}
+
+      {/* Persistent brand mark — present in every frame, selling in none of
+          them. Never on the hook beat, where it would cost the first second. */}
+      {phase === 'hook' ? null : (
+        <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36 }}>
+          {logoUrl ? (
+            <Img src={logoUrl} style={{ width: 120, opacity: 0.85 }} />
+          ) : (
+            <div style={{ fontFamily: font, fontSize: 30, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+              {brandName}
+            </div>
+          )}
+        </AbsoluteFill>
+      )}
+
+      {phase === 'cta' && siteUrl ? (
+        <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 110 }}>
+          <div style={{ fontFamily: font, fontSize: 34, color: 'rgba(255,255,255,0.75)' }}>
+            {siteUrl}
+          </div>
+        </AbsoluteFill>
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
@@ -642,6 +1007,41 @@ export const RemotionRoot: React.FC = () => {
           INTRO_FRAMES +
           (props.holdSeconds ? Math.round(props.holdSeconds * 30) : IMAGE_HOLD_FRAMES),
         fps: 30,
+      })}
+    />
+    <Composition
+      id="TriviaEpisode"
+      component={TriviaEpisodeComp}
+      durationInFrames={30 * EP_FPS}
+      fps={EP_FPS}
+      width={1080}
+      height={1920}
+      defaultProps={{
+        episode: {
+          mechanic: 'choices',
+          hook: 'This dish may not come from where you think.',
+          question: 'Where did jollof rice originate?',
+          answer: 'Most commonly credited to Senegal',
+          choices: ['Nigeria', 'Senegal', 'Ghana'],
+          correct_index: 1,
+          cta_type: 'follow',
+          beats: [
+            { beat: 'hook', spoken: 'This dish may not come from where you think.', display: 'Not where you think' },
+            { beat: 'challenge', spoken: 'Where did jollof rice originate?', display: 'Where did it start?' },
+            { beat: 'clue', spoken: 'The name points to a medieval empire.', display: 'The name is a clue' },
+            { beat: 'pressure', spoken: 'Three seconds.', display: 'Three seconds' },
+            { beat: 'reveal', spoken: 'Senegal.', display: 'Senegal' },
+            { beat: 'payoff', spoken: 'The Wolof of the Senegambia region gave the dish its name.', display: 'Named for the Wolof' },
+            { beat: 'cta', spoken: 'Follow for tomorrow.', display: 'Follow for tomorrow' },
+          ],
+        } as EpisodeSpec,
+        brandName: 'Ruoth',
+        accentColor: '#C0392B',
+        siteUrl: 'ruothstore.com',
+      }}
+      calculateMetadata={({ props }) => ({
+        durationInFrames: triviaEpisodeFrames(props.episode),
+        fps: EP_FPS,
       })}
     />
     <Composition

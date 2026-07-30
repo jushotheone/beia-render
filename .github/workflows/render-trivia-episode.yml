@@ -1,0 +1,256 @@
+name: Render trivia episode
+
+# The retention rebuild of render-trivia-reel.
+#
+# That workflow rendered a narrated statement from four flat strings. This one
+# renders a GAME from one `episode` JSON payload carrying the full beat timeline
+# — hook, challenge, clues, pressure, reveal, payoff, CTA — plus choices,
+# figures, per-beat narration and presenter clips.
+#
+# One JSON input rather than a field per property, because the beat structure
+# keeps growing and a workflow_dispatch input list cannot grow with it.
+#
+# Voice: beia_core synthesises narration per beat (ElevenLabs) and passes URLs,
+# because it needs each beat's measured duration to lay out the timeline. When
+# it could not, this workflow falls back to the free CPU Kokoro voice and
+# measures the durations here instead. Either way the episode ships; which voice
+# was used is reported, never disguised.
+#
+# Storage-blind: beia_core downloads the artifact and stores it in the correct
+# brand's R2. Generic — every brand string is an input.
+
+on:
+  workflow_dispatch:
+    inputs:
+      episode:
+        description: "Episode JSON: beats, mechanic, choices, figures, presenter clips"
+        required: true
+      task_id:
+        description: "Originating BEIA task id (names the artifact)"
+        required: true
+      brand_name:
+        description: "Brand name"
+        required: false
+        default: "Ruoth"
+      accent_color:
+        description: "Accent colour (hex)"
+        required: false
+        default: "#C0392B"
+      site_url:
+        description: "Site shown on the CTA beat"
+        required: false
+        default: ""
+      logo_url:
+        description: "Brand mark, shown small in every frame except the hook"
+        required: false
+        default: ""
+      music_url:
+        description: "Royalty-free bed under the narration (optional)"
+        required: false
+        default: ""
+      voice:
+        description: "Kokoro voice id, used ONLY when no per-beat audio was supplied"
+        required: false
+        default: "af_heart"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install headless Chrome system libraries + espeak-ng
+        run: |
+          sudo apt-get update
+          # espeak-ng is Kokoro's phonemiser fallback
+          sudo apt-get install -y espeak-ng
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 || \
+          sudo apt-get install -y \
+            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
+            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2
+
+      - name: Install Node dependencies
+        run: npm install
+
+      - name: Validate episode payload
+        id: episode
+        env:
+          EPISODE: ${{ inputs.episode }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            let ep;
+            try { ep = JSON.parse(process.env.EPISODE || "{}"); }
+            catch (e) { console.error("episode is not valid JSON: " + e.message); process.exit(1); }
+            const beats = ep.beats || [];
+            if (!beats.length) { console.error("episode has no beats"); process.exit(1); }
+            const named = beats.map(b => b.beat);
+            if (!named.includes("hook")) { console.error("episode has no hook beat"); process.exit(1); }
+            if (!named.includes("reveal")) { console.error("episode has no reveal beat"); process.exit(1); }
+            const withAudio = beats.filter(b => b.audio_url).length;
+            fs.writeFileSync("episode.json", JSON.stringify(ep));
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              "needs_tts=" + (withAudio === beats.length ? "false" : "true") + "\n");
+            console.log("beats: " + beats.length + " (" + named.join(" -> ") + ")");
+            console.log("beats carrying supplied audio: " + withAudio + "/" + beats.length);
+          '
+
+      # Every remote asset is fetched HERE, never during the render: a fetch that
+      # fails mid-render kills an otherwise finished episode, and curl succeeding
+      # does not mean Remotion's own fetch will succeed.
+      - name: Download supplied narration + presenter clips
+        run: |
+          mkdir -p public
+          node -e '
+            const fs = require("fs");
+            const ep = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            const jobs = [];
+            (ep.beats || []).forEach((b, i) => {
+              if (b.audio_url) jobs.push([b.audio_url, "beat-" + i + ".mp3", () => { b.audio_url = "beat-" + i + ".mp3"; }]);
+            });
+            (ep.presenter_clips || []).forEach((p, i) => {
+              if (p.video_url) jobs.push([p.video_url, "presenter-" + i + ".mp4", () => { p.video_url = "presenter-" + i + ".mp4"; }]);
+            });
+            fs.writeFileSync("download_jobs.json", JSON.stringify(jobs.map(j => [j[0], j[1]])));
+            fs.writeFileSync("episode.json", JSON.stringify(ep));
+            console.log("assets to fetch: " + jobs.length);
+          '
+          node -e '
+            const jobs = require("./download_jobs.json");
+            for (const [url, name] of jobs) console.log(url + "\t" + name);
+          ' | while IFS=$'\t' read -r url name; do
+            [ -z "$url" ] && continue
+            if curl -sfL --retry 3 --retry-delay 2 --max-time 90 -o "public/$name" "$url"; then
+              echo "fetched $name"
+            else
+              echo "FAILED to fetch $name from $url"; exit 1
+            fi
+          done
+          # Rewrite the payload to the bare filenames the component resolves.
+          node -e '
+            const fs = require("fs");
+            const ep = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            const jobs = require("./download_jobs.json");
+            const byUrl = new Map(jobs);
+            (ep.beats || []).forEach(b => { if (b.audio_url && byUrl.has(b.audio_url)) b.audio_url = byUrl.get(b.audio_url); });
+            (ep.presenter_clips || []).forEach(p => { if (p.video_url && byUrl.has(p.video_url)) p.video_url = byUrl.get(p.video_url); });
+            fs.writeFileSync("episode.json", JSON.stringify(ep));
+          '
+
+      - name: Install Kokoro TTS (only when narration was not supplied)
+        if: steps.episode.outputs.needs_tts == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install kokoro soundfile numpy
+
+      - name: Synthesize missing narration with the free voice
+        if: steps.episode.outputs.needs_tts == 'true'
+        env:
+          VOICE: ${{ inputs.voice }}
+        run: |
+          mkdir -p public
+          node -e '
+            const fs = require("fs");
+            const ep = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            const chunks = (ep.beats || []).map(b => b.spoken || b.display || "");
+            fs.writeFileSync("narration_spec.json", JSON.stringify({
+              voice: process.env.VOICE || "af_heart", speed: 1.0, chunks,
+            }));
+            console.log("kokoro chunks: " + chunks.length);
+          '
+          python scripts/generate_narration.py --spec narration_spec.json --outdir public
+          # Each chunk is one beat, so its measured duration IS that beat's
+          # duration — which is the whole reason narration is chunked per beat.
+          node -e '
+            const fs = require("fs");
+            const ep = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            const caps = JSON.parse(fs.readFileSync("public/captions.json", "utf8"));
+            (ep.beats || []).forEach((b, i) => {
+              const c = caps[i];
+              if (c) b.duration_seconds = (c.endMs - c.startMs) / 1000;
+            });
+            fs.writeFileSync("episode.json", JSON.stringify(ep));
+            console.log("beat durations taken from kokoro timings");
+          '
+
+      - name: Check music reachability
+        id: music
+        env:
+          MUSIC_URL: ${{ inputs.music_url }}
+        run: |
+          if [ -z "$MUSIC_URL" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "no music requested"; exit 0
+          fi
+          mkdir -p public
+          if curl -sfL --retry 3 --retry-delay 2 --max-time 45 -o public/music.mp3 "$MUSIC_URL"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "music downloaded to public/music.mp3"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"; echo "music UNREACHABLE — rendering silent"
+          fi
+
+      - name: Build render props
+        env:
+          MUSIC_URL: ${{ steps.music.outputs.ok == 'true' && 'music.mp3' || '' }}
+          LOGO_URL: ${{ inputs.logo_url }}
+          SITE_URL: ${{ inputs.site_url }}
+          BRAND_NAME: ${{ inputs.brand_name }}
+          ACCENT_COLOR: ${{ inputs.accent_color }}
+          NARRATION_FALLBACK: ${{ steps.episode.outputs.needs_tts == 'true' && 'narration.wav' || '' }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const episode = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            const props = {
+              episode,
+              brandName: process.env.BRAND_NAME || "Ruoth",
+              accentColor: process.env.ACCENT_COLOR || "#C0392B",
+              siteUrl: process.env.SITE_URL || "",
+            };
+            if (process.env.LOGO_URL) props.logoUrl = process.env.LOGO_URL;
+            if (process.env.MUSIC_URL) props.musicUrl = process.env.MUSIC_URL;
+            // Only used when no per-beat audio exists at all.
+            const anyBeatAudio = (episode.beats || []).some(b => b.audio_url);
+            if (!anyBeatAudio && process.env.NARRATION_FALLBACK) {
+              props.narrationUrl = process.env.NARRATION_FALLBACK;
+            }
+            fs.writeFileSync("props.json", JSON.stringify(props));
+            const total = (episode.beats || []).reduce((s, b) => s + (b.duration_seconds || 0), 0);
+            console.log("beats: " + (episode.beats || []).length +
+              ", total narration: " + total.toFixed(2) + "s" +
+              ", presenter clips: " + (episode.presenter_clips || []).length);
+          '
+
+      - name: Render trivia episode
+        run: |
+          npx remotion render src/index.ts TriviaEpisode out/episode.mp4 \
+            --props=props.json \
+            --log=info
+
+      - name: Verify the render is real
+        run: |
+          # A workflow that concludes "success" having produced a 0-byte file is
+          # exactly the false success the doctrine forbids. Check it.
+          test -s out/episode.mp4 || { echo "render produced no file"; exit 1; }
+          size=$(stat -c%s out/episode.mp4)
+          echo "rendered $size bytes"
+          [ "$size" -gt 20000 ] || { echo "render suspiciously small — treating as failed"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: triviaepisode-${{ inputs.task_id }}
+          path: out/episode.mp4
+          retention-days: 3
