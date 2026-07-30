@@ -254,8 +254,46 @@ jobs:
           echo "rendered $size bytes"
           [ "$size" -gt 20000 ] || { echo "render suspiciously small — treating as failed"; exit 1; }
 
+      # Frames for the visual QA gate. Extracted HERE because this runner has
+      # ffmpeg and the Railway worker does not — and because a reviewer that
+      # cannot see the episode is not reviewing it, it is reading a file size.
+      # One frame at the midpoint of every beat, so QA sees each state of the
+      # game rather than whatever moment a fixed interval happened to land on.
+      - name: Extract frames for visual QA
+        run: |
+          mkdir -p out/frames
+          node -e '
+            const fs = require("fs");
+            const ep = JSON.parse(fs.readFileSync("episode.json", "utf8"));
+            let at = 0;
+            const marks = [];
+            for (const b of ep.beats || []) {
+              const d = b.duration_seconds && b.duration_seconds > 0
+                ? b.duration_seconds
+                : Math.max(0.9, String(b.spoken || "").split(/\s+/).filter(Boolean).length / 2.4);
+              marks.push({ beat: b.beat, at: +(at + d / 2).toFixed(2) });
+              at += d;
+            }
+            fs.writeFileSync("frames.json", JSON.stringify(marks));
+            console.log(marks.map(m => m.beat + "@" + m.at + "s").join("  "));
+          '
+          i=0
+          for row in $(node -e 'require("./frames.json").forEach((m,i)=>console.log(i+":"+m.beat+":"+m.at))'); do
+            idx=${row%%:*}; rest=${row#*:}; beat=${rest%%:*}; at=${rest##*:}
+            ffmpeg -v error -ss "$at" -i out/episode.mp4 -frames:v 1 \
+              -vf "scale=540:-1" "out/frames/$(printf '%02d' "$idx")-${beat}.jpg" -y || true
+            i=$((i+1))
+          done
+          cp frames.json out/frames/manifest.json
+          ls -la out/frames/
+          # No frames means QA would have to pass blind, which it must never do.
+          test "$(ls out/frames/*.jpg 2>/dev/null | wc -l)" -gt 0 \
+            || { echo "no frames extracted — visual QA would be blind"; exit 1; }
+
       - uses: actions/upload-artifact@v4
         with:
           name: triviaepisode-${{ inputs.task_id }}
-          path: out/episode.mp4
+          path: |
+            out/episode.mp4
+            out/frames
           retention-days: 3

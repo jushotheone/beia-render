@@ -730,12 +730,32 @@ const EpStage: React.FC<{
   // On a visual format the IMAGE is the challenge, so it is already behind this.
   if (phase === 'hook') {
     return (
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: 70 }}>
+      <AbsoluteFill
+        style={{
+          // Centred when the hook is the only thing on screen. With a still
+          // behind it the hook moves to the top third, because centring it puts
+          // the words directly on the subject — which produced an unreadable
+          // first frame of black text on a black silhouette.
+          justifyContent: hasStill ? 'flex-start' : 'center',
+          alignItems: 'center',
+          padding: 70,
+          paddingTop: hasStill ? 150 : 70,
+        }}
+      >
         <div
           style={{
-            fontFamily: font, fontSize: 92, fontWeight: 700, color: ink,
-            textAlign: 'center', lineHeight: 1.15,
+            fontFamily: font, fontSize: hasStill ? 74 : 92, fontWeight: 700,
+            color: ink, textAlign: 'center', lineHeight: 1.15,
             textShadow: onLight ? 'none' : '0 6px 24px rgba(0,0,0,0.5)',
+            // A plate behind the words so the hook stays legible whatever the
+            // still happens to be behind it.
+            ...(hasStill
+              ? {
+                  background: onLight ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)',
+                  borderRadius: 24,
+                  padding: '22px 30px',
+                }
+              : {}),
           }}
         >
           {episode.hook}
@@ -914,11 +934,18 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         // filter lifts and the same asset becomes the photograph — which is the
         // whole payoff of the format, from one image.
         <AbsoluteFill style={{ backgroundColor: revealed ? '#0B0B0C' : '#EFEFEF' }}>
-          <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: 120 }}>
+          {/* Sits in the lower two-thirds: the question and captions own the top
+              and bottom bands, and the shape must not compete with either. */}
+          <AbsoluteFill
+            style={{
+              justifyContent: 'center', alignItems: 'center',
+              paddingTop: 420, paddingBottom: 340, paddingLeft: 80, paddingRight: 80,
+            }}
+          >
             <Img
               src={still}
               style={{
-                maxWidth: '78%', maxHeight: '58%', objectFit: 'contain',
+                maxWidth: '92%', maxHeight: '100%', objectFit: 'contain',
                 filter: revealed ? 'none' : 'brightness(0)',
               }}
             />
