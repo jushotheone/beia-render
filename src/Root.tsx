@@ -800,7 +800,11 @@ const EpStage: React.FC<{
     </div>
   );
 
-  const Answer = revealed ? (
+  // When the answer is one of the choices, highlighting it IS the reveal. A
+  // banner underneath repeating the same words is noise on a screen that has
+  // seconds to land.
+  const answerIsAChoice = choices.length > 0 && correct !== null && correct !== undefined;
+  const Answer = revealed && !answerIsAChoice ? (
     <div
       style={{
         fontFamily: font, fontSize: 62, fontWeight: 700, color: '#FFFFFF',
