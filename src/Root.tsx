@@ -659,6 +659,16 @@ type TriviaEpisodeProps = {
 
 const EP_FPS = 30;
 
+// Platform chrome, measured against a real Shorts screenshot rather than
+// guessed. YouTube puts the back arrow, search and menu across the top and the
+// channel handle, description and action rail across the bottom — an episode
+// published with the question under the back arrow and the caption colliding
+// with the handle. TikTok and Instagram are worse at the bottom, so these are
+// sized for the worst case and used everywhere.
+const EP_SAFE_TOP = 300;      // ~16% of 1920
+const EP_SAFE_BOTTOM = 520;   // ~27% — the action rail and description sit here
+const EP_SAFE_SIDE = 96;
+
 // Speech rate measured from real narration takes, used ONLY when a beat has no
 // measured audio (the free-voice fallback path). Deliberately a named constant:
 // a wrong value here desyncs every beat after it.
@@ -707,7 +717,12 @@ const EpCaption: React.FC<{
 }> = ({ text, accentColor, bottom, onLight = false, bodyFont }) => {
   if (!text) return null;
   return (
-    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: bottom }}>
+    <AbsoluteFill
+      style={{
+        justifyContent: 'flex-end', alignItems: 'center',
+        paddingBottom: bottom, paddingLeft: EP_SAFE_SIDE, paddingRight: EP_SAFE_SIDE,
+      }}
+    >
       <div
         style={{
           maxWidth: '86%',
@@ -765,8 +780,10 @@ const EpStage: React.FC<{
           // first frame of black text on a black silhouette.
           justifyContent: hasStill ? 'flex-start' : 'center',
           alignItems: 'center',
-          padding: 70,
-          paddingTop: hasStill ? 150 : 70,
+          paddingLeft: EP_SAFE_SIDE,
+          paddingRight: EP_SAFE_SIDE,
+          paddingTop: EP_SAFE_TOP,
+          paddingBottom: EP_SAFE_BOTTOM,
         }}
       >
         <div
@@ -919,9 +936,10 @@ const EpStage: React.FC<{
     <AbsoluteFill
       style={{
         justifyContent: hasStill ? 'flex-start' : 'center',
-        padding: 70,
-        paddingTop: hasStill ? 150 : 70,
-        paddingBottom: 380,
+        paddingLeft: EP_SAFE_SIDE,
+        paddingRight: EP_SAFE_SIDE,
+        paddingTop: EP_SAFE_TOP,
+        paddingBottom: EP_SAFE_BOTTOM + 80,
       }}
     >
       {Question}
@@ -1108,7 +1126,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         <EpCaption
           text={String(active.display || '')}
           accentColor={primary}
-          bottom={190}
+          bottom={EP_SAFE_BOTTOM}
           onLight={onLight}
           bodyFont={bodyFont}
         />
@@ -1117,7 +1135,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
       {/* Persistent brand mark — present in every frame, selling in none of
           them. Never on the hook beat, where it would cost the first second. */}
       {phase === 'hook' ? null : (
-        <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36 }}>
+        <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36, paddingTop: EP_SAFE_TOP }}>
           {logoUrl ? (
             <Img
               src={resolveMedia(logoUrl)!}
@@ -1146,7 +1164,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           forward only on the CTA beat. */}
       {siteUrl && phase !== 'hook' ? (
         <AbsoluteFill
-          style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36, paddingTop: 132 }}
+          style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36, paddingTop: EP_SAFE_TOP + 84 }}
         >
           <div
             style={{
