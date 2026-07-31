@@ -672,10 +672,20 @@ const epBeatSeconds = (b: EpisodeBeat): number => {
 
 // Beat index -> [startFrame, endFrame). One source of truth for timing, shared
 // by the audio, the stage and the captions so they cannot drift apart.
+// The countdown must actually last as long as it says. Narration of "three,
+// two, one" takes about 1.5 seconds, so a ring driven purely by speech counted
+// 3-2-1 in half the time and gave the viewer no chance to answer — the pressure
+// beat is precisely where they are supposed to be deciding.
+const EP_MIN_PRESSURE_SECONDS = 3.2;
+
 const epTimeline = (beats: EpisodeBeat[]) => {
   let at = 0;
   return beats.map((b) => {
-    const dur = Math.max(1, Math.round(epBeatSeconds(b) * EP_FPS));
+    let seconds = epBeatSeconds(b);
+    if (String(b.beat) === 'pressure') {
+      seconds = Math.max(seconds, EP_MIN_PRESSURE_SECONDS);
+    }
+    const dur = Math.max(1, Math.round(seconds * EP_FPS));
     const span = { from: at, to: at + dur };
     at += dur;
     return span;
