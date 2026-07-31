@@ -132,6 +132,7 @@ jobs:
             // must fail the render rather than silently shipping a text-only
             // version of a picture quiz.
             if (ep.image_url) jobs.push([ep.image_url, "still.png", () => {}]);
+            if (ep.reveal_image_url) jobs.push([ep.reveal_image_url, "reveal.png", () => {}]);
             fs.writeFileSync("download_jobs.json", JSON.stringify(jobs.map(j => [j[0], j[1]])));
             fs.writeFileSync("episode.json", JSON.stringify(ep));
             console.log("assets to fetch: " + jobs.length);
@@ -181,6 +182,7 @@ jobs:
               if (webm !== p.video_url && fs2.existsSync("public/" + webm)) p.video_url = webm;
             });
             if (ep.image_url && byUrl.has(ep.image_url)) ep.image_url = byUrl.get(ep.image_url);
+            if (ep.reveal_image_url && byUrl.has(ep.reveal_image_url)) ep.reveal_image_url = byUrl.get(ep.reveal_image_url);
             fs.writeFileSync("episode.json", JSON.stringify(ep));
           '
 

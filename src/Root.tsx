@@ -629,6 +629,7 @@ type EpisodeSpec = {
   cta?: string;
   visual_brief?: string;
   image_url?: string | null;
+  reveal_image_url?: string | null;
   beats?: EpisodeBeat[];
   avatar_treatment?: string;
   presenter_clips?: PresenterClip[];
@@ -982,7 +983,16 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
   // real photograph. That is the format's whole payoff, and it is one CSS
   // filter rather than a second generated image.
   const totalFrames = spans.length ? spans[spans.length - 1].to : 1;
-  const still = episode.image_url ? resolveMedia(episode.image_url) : undefined;
+  // Two stills, swapped at the reveal. Section 13 asks the screen to change
+  // meaningfully every second or two; one image held for the whole episode
+  // reads as a slide however slowly it pushes, and the reveal is the beat the
+  // episode is built towards — changing the picture there is where the change
+  // is worth the most.
+  const setupStill = episode.image_url ? resolveMedia(episode.image_url) : undefined;
+  const revealStill = episode.reveal_image_url
+    ? resolveMedia(episode.reveal_image_url)
+    : undefined;
+  const still = revealed && revealStill ? revealStill : setupStill;
   const isSilhouette = episode.format === 'silhouette_quiz';
   // The silhouette field is light until the reveal, so white text would vanish
   // into it. Everything else in the composition sits on dark.
@@ -1121,9 +1131,32 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         </AbsoluteFill>
       )}
 
-      {phase === 'cta' && siteUrl ? (
-        <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 110 }}>
-          <div style={{ fontFamily: bodyFont, fontSize: 34, color: 'rgba(255,255,255,0.75)' }}>
+      {/* Section 15: the brand stays visually present in EVERY episode, while
+          explicit selling stays limited. The site sat under the logo only on
+          the CTA beat, so the 15% no-CTA control and every non-product episode
+          gave a viewer no way to find the shop at all. It now rides under the
+          mark throughout — small, quiet, never covering the game — and steps
+          forward only on the CTA beat. */}
+      {siteUrl && phase !== 'hook' ? (
+        <AbsoluteFill
+          style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36, paddingTop: 132 }}
+        >
+          <div
+            style={{
+              fontFamily: bodyFont,
+              fontSize: phase === 'cta' ? 34 : 24,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              color: onLight
+                ? `rgba(0,0,0,${phase === 'cta' ? 0.8 : 0.5})`
+                : `rgba(255,255,255,${phase === 'cta' ? 0.95 : 0.62})`,
+              background: phase === 'cta'
+                ? (onLight ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.45)')
+                : 'transparent',
+              borderRadius: 10,
+              padding: phase === 'cta' ? '8px 14px' : 0,
+            }}
+          >
             {siteUrl}
           </div>
         </AbsoluteFill>
