@@ -36,6 +36,10 @@ on:
         description: "Accent colour (hex)"
         required: false
         default: "#C0392B"
+      brand:
+        description: "Brand identity JSON: primary, secondary, light, palette, fonts, tagline"
+        required: false
+        default: ""
       site_url:
         description: "Site shown on the CTA beat"
         required: false
@@ -214,6 +218,7 @@ jobs:
           SITE_URL: ${{ inputs.site_url }}
           BRAND_NAME: ${{ inputs.brand_name }}
           ACCENT_COLOR: ${{ inputs.accent_color }}
+          BRAND_JSON: ${{ inputs.brand }}
           NARRATION_FALLBACK: ${{ steps.episode.outputs.needs_tts == 'true' && 'narration.wav' || '' }}
         run: |
           node -e '
@@ -227,6 +232,10 @@ jobs:
             };
             if (process.env.LOGO_URL) props.logoUrl = process.env.LOGO_URL;
             if (process.env.MUSIC_URL) props.musicUrl = process.env.MUSIC_URL;
+            if (process.env.BRAND_JSON) {
+              try { props.brand = JSON.parse(process.env.BRAND_JSON); }
+              catch (e) { console.log("brand JSON unreadable, using defaults: " + e.message); }
+            }
             // Only used when no per-beat audio exists at all.
             const anyBeatAudio = (episode.beats || []).some(b => b.audio_url);
             if (!anyBeatAudio && process.env.NARRATION_FALLBACK) {

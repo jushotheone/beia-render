@@ -635,8 +635,18 @@ type EpisodeSpec = {
   duration_target?: number[];
 };
 
+type BrandIdentity = {
+  primary?: string;
+  secondary?: string;
+  light?: string;
+  palette?: string[];
+  fonts?: string[];
+  tagline?: string;
+};
+
 type TriviaEpisodeProps = {
   episode: EpisodeSpec;
+  brand?: BrandIdentity;
   brandName?: string;
   accentColor?: string;
   logoUrl?: string;
@@ -682,7 +692,8 @@ export const triviaEpisodeFrames = (episode: EpisodeSpec): number => {
 
 const EpCaption: React.FC<{
   text: string; accentColor: string; bottom: number; onLight?: boolean;
-}> = ({ text, accentColor, bottom, onLight = false }) => {
+  bodyFont?: string;
+}> = ({ text, accentColor, bottom, onLight = false, bodyFont }) => {
   if (!text) return null;
   return (
     <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: bottom }}>
@@ -690,7 +701,7 @@ const EpCaption: React.FC<{
         style={{
           maxWidth: '86%',
           textAlign: 'center',
-          fontFamily: 'Arial, Helvetica, sans-serif',
+          fontFamily: bodyFont || 'Arial, Helvetica, sans-serif',
           fontSize: 58,
           fontWeight: 700,
           lineHeight: 1.22,
@@ -718,8 +729,13 @@ const EpStage: React.FC<{
   pressureProgress: number;
   hasStill: boolean;
   onLight: boolean;
-}> = ({ episode, phase, revealed, accentColor, pressureProgress, hasStill, onLight }) => {
-  const font = 'Arial, Helvetica, sans-serif';
+  headFont: string;
+  bodyFont: string;
+}> = ({ episode, phase, revealed, accentColor, pressureProgress, hasStill, onLight,
+        headFont, bodyFont }) => {
+  // The question is the show's voice — it carries the brand's header typeface.
+  // Choices and figures are UI and stay on the body face for legibility.
+  const font = bodyFont;
   const ink = onLight ? '#111111' : '#FFFFFF';
   const mechanic = episode.mechanic || 'reveal';
   const choices = episode.choices || [];
@@ -744,7 +760,7 @@ const EpStage: React.FC<{
       >
         <div
           style={{
-            fontFamily: font, fontSize: hasStill ? 74 : 92, fontWeight: 700,
+            fontFamily: headFont, fontSize: hasStill ? 74 : 92, fontWeight: 700,
             color: ink, textAlign: 'center', lineHeight: 1.15,
             textShadow: onLight ? 'none' : '0 6px 24px rgba(0,0,0,0.5)',
             // A plate behind the words so the hook stays legible whatever the
@@ -767,7 +783,7 @@ const EpStage: React.FC<{
   const Question = (
     <div
       style={{
-        fontFamily: font, fontSize: 60, fontWeight: 700, color: ink,
+        fontFamily: headFont, fontSize: 60, fontWeight: 700, color: ink,
         textAlign: 'center', lineHeight: 1.24, marginBottom: 46,
       }}
     >
@@ -836,16 +852,46 @@ const EpStage: React.FC<{
     </div>
   ) : null;
 
-  // The countdown exists to create tension at the exact beat viewers drop.
+  // The countdown is the moment viewers drop, so it has to LOOK like a clock,
+  // not a loading bar. A thin progress line under three spoken words read as a
+  // buffering indicator; a ticking ring with the number counting 3-2-1 inside it
+  // is the visual language every quiz show already taught the audience.
+  const secondsLeft = Math.max(1, Math.ceil((1 - pressureProgress) * 3));
+  const ringSize = 190;
+  const stroke = 14;
+  const radius = (ringSize - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
   const Countdown =
     phase === 'pressure' ? (
-      <div style={{ marginTop: 40, width: '100%', height: 14, background: 'rgba(255,255,255,0.15)', borderRadius: 8 }}>
-        <div
-          style={{
-            width: `${Math.max(0, 1 - pressureProgress) * 100}%`,
-            height: '100%', background: accentColor, borderRadius: 8,
-          }}
-        />
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: 46 }}>
+        <div style={{ position: 'relative', width: ringSize, height: ringSize }}>
+          <svg width={ringSize} height={ringSize} style={{ transform: 'rotate(-90deg)' }}>
+            <circle
+              cx={ringSize / 2} cy={ringSize / 2} r={radius}
+              fill="none" stroke={onLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)'}
+              strokeWidth={stroke}
+            />
+            <circle
+              cx={ringSize / 2} cy={ringSize / 2} r={radius}
+              fill="none" stroke={accentColor} strokeWidth={stroke}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * pressureProgress}
+            />
+          </svg>
+          <div
+            style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontFamily: headFont, fontSize: 96, fontWeight: 700, color: ink,
+              // A small pulse on each tick so the number reads as counting
+              // rather than sitting still.
+              transform: `scale(${1 + 0.06 * (1 - ((1 - pressureProgress) * 3) % 1)})`,
+            }}
+          >
+            {secondsLeft}
+          </div>
+        </div>
       </div>
     ) : null;
 
@@ -877,6 +923,7 @@ const EpStage: React.FC<{
 
 const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
   episode,
+  brand = {},
   brandName = 'Ruoth',
   accentColor = '#C0392B',
   logoUrl,
@@ -886,7 +933,15 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
   narrationUrl,
 }) => {
   const frame = useCurrentFrame();
-  const font = 'Arial, Helvetica, sans-serif';
+  // Typography and colour come from the BRAND, not from defaults. Every episode
+  // before this rendered in a red that is nowhere in Ruoth's palette, set in
+  // Arial while the brand specifies Georgia for headers — because the identity
+  // document existed and nothing read it.
+  const fonts = brand.fonts || [];
+  const headFont = `${fonts[1] || 'Georgia'}, Georgia, serif`;
+  const bodyFont = `${fonts[0] || 'Arial'}, Arial, Helvetica, sans-serif`;
+  const primary = brand.primary || accentColor;
+  const light = brand.light || '#F2F2F2';
   const beats = episode?.beats || [];
   const spans = epTimeline(beats);
 
@@ -933,7 +988,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         // channel, so blackening it leaves only the shape. At the reveal the
         // filter lifts and the same asset becomes the photograph — which is the
         // whole payoff of the format, from one image.
-        <AbsoluteFill style={{ backgroundColor: revealed ? '#0B0B0C' : '#EFEFEF' }}>
+        <AbsoluteFill style={{ backgroundColor: revealed ? '#0B0B0C' : light }}>
           {/* Sits in the lower two-thirds: the question and captions own the top
               and bottom bands, and the shape must not compete with either. */}
           <AbsoluteFill
@@ -984,10 +1039,12 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         episode={episode}
         phase={phase}
         revealed={revealed}
-        accentColor={accentColor}
+        accentColor={primary}
         pressureProgress={pressureProgress}
         hasStill={Boolean(still)}
         onLight={onLight}
+        headFont={headFont}
+        bodyFont={bodyFont}
       />
 
       {/* Presenter composites OVER the game and never covers it — bottom-right,
@@ -1006,9 +1063,10 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
       {phase === 'hook' ? null : (
         <EpCaption
           text={String(active.display || '')}
-          accentColor={accentColor}
+          accentColor={primary}
           bottom={190}
           onLight={onLight}
+          bodyFont={bodyFont}
         />
       )}
 
@@ -1017,9 +1075,19 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
       {phase === 'hook' ? null : (
         <AbsoluteFill style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36 }}>
           {logoUrl ? (
-            <Img src={logoUrl} style={{ width: 120, opacity: 0.85 }} />
+            <Img
+              src={resolveMedia(logoUrl)!}
+              style={{
+                width: 150, opacity: 0.95,
+                // A dark logo vanishes on the silhouette's light field and a
+                // light one vanishes on everything else. A soft plate behind it
+                // keeps the mark legible on both without touching the artwork.
+                background: onLight ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.35)',
+                borderRadius: 12, padding: 8,
+              }}
+            />
           ) : (
-            <div style={{ fontFamily: font, fontSize: 30, color: onLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
+            <div style={{ fontFamily: headFont, fontSize: 30, color: onLight ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.7)', fontWeight: 600 }}>
               {brandName}
             </div>
           )}
@@ -1028,7 +1096,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
       {phase === 'cta' && siteUrl ? (
         <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 110 }}>
-          <div style={{ fontFamily: font, fontSize: 34, color: 'rgba(255,255,255,0.75)' }}>
+          <div style={{ fontFamily: bodyFont, fontSize: 34, color: 'rgba(255,255,255,0.75)' }}>
             {siteUrl}
           </div>
         </AbsoluteFill>
