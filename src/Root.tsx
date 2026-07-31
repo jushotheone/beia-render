@@ -981,6 +981,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
   // A silhouette quiz stays silhouetted until the reveal, then resolves to the
   // real photograph. That is the format's whole payoff, and it is one CSS
   // filter rather than a second generated image.
+  const totalFrames = spans.length ? spans[spans.length - 1].to : 1;
   const still = episode.image_url ? resolveMedia(episode.image_url) : undefined;
   const isSilhouette = episode.format === 'silhouette_quiz';
   // The silhouette field is light until the reveal, so white text would vanish
@@ -1018,7 +1019,23 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         </AbsoluteFill>
       ) : still ? (
         <AbsoluteFill>
-          <Img src={still} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {/* A held still reads as a slide. A slow push keeps the frame alive
+              for the whole episode without competing with the game — the same
+              treatment the repurpose reel already uses on static pins. */}
+          <Img
+            src={still}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: `scale(${interpolate(
+                frame,
+                [0, Math.max(1, totalFrames)],
+                [1, 1.12],
+                { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
+              )})`,
+            }}
+          />
           {/* Scrim: captions and choices must stay readable over any photo. */}
           <AbsoluteFill
             style={{
