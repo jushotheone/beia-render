@@ -674,7 +674,13 @@ const EP_SAFE_SIDE = 96;
 // The brand mark and store URL sit in a strip of their own under the safe top.
 // Content has to start below it: both used to begin at EP_SAFE_TOP, so a long
 // question wrapped straight through "Ruoth" and "ruothstore.com".
-const EP_HEADER_H = 150;
+// Tall enough to clear a logo (150 wide plus its plate) AND the store URL that
+// rides under it. It was 150, which cleared the text-only mark but not a logo.
+const EP_HEADER_H = 220;
+// The URL sits under whichever mark is above it. At a flat 84 it landed on top
+// of the logo, which is why "ruothstore.com" appeared stamped across it.
+const EP_SITE_OFFSET_WITH_LOGO = 178;
+const EP_SITE_OFFSET_TEXT_ONLY = 84;
 
 // Speech rate measured from real narration takes, used ONLY when a beat has no
 // measured audio (the free-voice fallback path). Deliberately a named constant:
@@ -1192,7 +1198,12 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           forward only on the CTA beat. */}
       {siteUrl && phase !== 'hook' ? (
         <AbsoluteFill
-          style={{ justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36, paddingTop: EP_SAFE_TOP + 84 }}
+          style={{
+            justifyContent: 'flex-start', alignItems: 'flex-end', padding: 36,
+            paddingTop: EP_SAFE_TOP + (logoUrl
+              ? EP_SITE_OFFSET_WITH_LOGO
+              : EP_SITE_OFFSET_TEXT_ONLY),
+          }}
         >
           <div
             style={{
