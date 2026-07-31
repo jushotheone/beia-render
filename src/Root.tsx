@@ -1086,11 +1086,18 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
       {/* Presenter composites OVER the game and never covers it — bottom-right,
           bounded, so the trivia stays the star (section 12). */}
+      {/* The presenter takes the WHOLE frame for its beat, then the game takes
+          it back — a cut, which is what section 12 describes. It used to be
+          composited as a corner rectangle, which needs the clip to have a
+          transparent background; three attempts proved that impossible (mp4
+          carries no alpha, and a keyed webm lost it), so the presenter shipped
+          as a white box and then a green one. HeyGen now renders them standing
+          in the episode's own scene, so the clip IS the frame. */}
       {presenter ? (
-        <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'flex-end', padding: 40 }}>
+        <AbsoluteFill style={{ backgroundColor: '#000' }}>
           <OffthreadVideo
             src={resolveMedia(presenter.video_url)!}
-            style={{ width: 420, borderRadius: 20 }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             muted
           />
         </AbsoluteFill>

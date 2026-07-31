@@ -148,24 +148,6 @@ jobs:
               echo "FAILED to fetch $name from $url"; exit 1
             fi
           done
-          # Key the green plate out of the presenter clips. HeyGen returns
-          # h264/yuv420p and mp4 carries no alpha channel at all, so no API
-          # request can hand back a transparent avatar — it has to be cut here.
-          # A first attempt pasted the presenter on screen as a white rectangle;
-          # worse, the chef's whites made that plate unkeyable afterwards.
-          for f in public/presenter-*.mp4; do
-            [ -e "$f" ] || continue
-            out="${f%.mp4}.webm"
-            if npx remotion ffmpeg -v error -i "$f" \
-                 -vf "colorkey=0x00B140:0.30:0.12,format=yuva420p" \
-                 -c:v libvpx-vp9 -pix_fmt yuva420p -an "$out" -y; then
-              echo "keyed $(basename "$f") -> $(basename "$out")"
-              rm -f "$f"
-            else
-              echo "colour key FAILED for $(basename "$f") — keeping the raw clip"
-            fi
-          done
-
           # Rewrite the payload to the bare filenames the component resolves.
           node -e '
             const fs = require("fs");
@@ -173,14 +155,7 @@ jobs:
             const jobs = require("./download_jobs.json");
             const byUrl = new Map(jobs);
             (ep.beats || []).forEach(b => { if (b.audio_url && byUrl.has(b.audio_url)) b.audio_url = byUrl.get(b.audio_url); });
-            const fs2 = require("fs");
-            (ep.presenter_clips || []).forEach(p => {
-              if (p.video_url && byUrl.has(p.video_url)) p.video_url = byUrl.get(p.video_url);
-              // The colour key replaced the mp4 with a keyed webm; point at
-              // whichever actually exists so a failed key still renders.
-              const webm = String(p.video_url || "").replace(/\.mp4$/, ".webm");
-              if (webm !== p.video_url && fs2.existsSync("public/" + webm)) p.video_url = webm;
-            });
+            (ep.presenter_clips || []).forEach(p => { if (p.video_url && byUrl.has(p.video_url)) p.video_url = byUrl.get(p.video_url); });
             if (ep.image_url && byUrl.has(ep.image_url)) ep.image_url = byUrl.get(ep.image_url);
             if (ep.reveal_image_url && byUrl.has(ep.reveal_image_url)) ep.reveal_image_url = byUrl.get(ep.reveal_image_url);
             fs.writeFileSync("episode.json", JSON.stringify(ep));
