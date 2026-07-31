@@ -1154,6 +1154,16 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
               alignItems: 'center',
             }}
           >
+            {/* The scene is pushed back so it reads as a backdrop rather than a
+                second panel. Without this the frame was three stacked pictures
+                -- food, presenter, food -- which is the split-frame look the
+                visual gate rejects, and rightly. Blurred and dimmed, the band
+                is unambiguously the subject. */}
+            <AbsoluteFill
+              // A plain scrim, not backdropFilter: the filter blurred the
+              // presenter along with the scene, whatever the stacking order.
+              style={{ backgroundColor: 'rgba(0,0,0,0.66)' }}
+            />
             <OffthreadVideo
               src={resolveMedia(presenter.video_url)!}
               style={{ width: '100%', height: 'auto', maxHeight: '100%' }}
