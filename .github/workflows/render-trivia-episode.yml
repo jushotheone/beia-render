@@ -286,12 +286,14 @@ jobs:
             fs.writeFileSync("frames.json", JSON.stringify(marks));
             console.log(marks.map(m => m.beat + "@" + m.at + "s").join("  "));
           '
-          i=0
+          # Remotion's own bundled ffmpeg. The runner image does not ship one —
+          # a first attempt used a bare `ffmpeg` and every extraction failed
+          # with "command not found", which failed the render of a video that
+          # had actually been made correctly.
           for row in $(node -e 'require("./frames.json").forEach((m,i)=>console.log(i+":"+m.beat+":"+m.at))'); do
             idx=${row%%:*}; rest=${row#*:}; beat=${rest%%:*}; at=${rest##*:}
-            ffmpeg -v error -ss "$at" -i out/episode.mp4 -frames:v 1 \
+            npx remotion ffmpeg -v error -ss "$at" -i out/episode.mp4 -frames:v 1 \
               -vf "scale=540:-1" "out/frames/$(printf '%02d' "$idx")-${beat}.jpg" -y || true
-            i=$((i+1))
           done
           cp frames.json out/frames/manifest.json
           ls -la out/frames/
