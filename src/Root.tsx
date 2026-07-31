@@ -665,9 +665,6 @@ const EP_FPS = 30;
 // published with the question under the back arrow and the caption colliding
 // with the handle. TikTok and Instagram are worse at the bottom, so these are
 // sized for the worst case and used everywhere.
-// Matches the backdrop HeyGen renders the presenter against, so a 16:9 look
-// blends into the frame instead of reading as a clip pasted onto black.
-const PRESENTER_BACKDROP = '#12100F';
 const EP_SAFE_TOP = 300;      // ~16% of 1920
 const EP_SAFE_BOTTOM = 520;   // ~27% — the action rail and description sit here
 const EP_SAFE_SIDE = 96;
@@ -1103,6 +1100,11 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         ? <Audio src={resolveMedia(narrationUrl)!} />
         : null}
 
+      {/* The game stands down while the presenter is on screen. He is only
+          there for the hook and the reveal, and the band sits across the middle
+          of the frame -- leaving the question up meant the clip cut straight
+          through it. The scene behind him still shows, so the frame stays full. */}
+      {presenter ? null : (
       <EpStage
         episode={episode}
         phase={phase}
@@ -1114,6 +1116,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         headFont={headFont}
         bodyFont={bodyFont}
       />
+      )}
 
       {/* Presenter composites OVER the game and never covers it — bottom-right,
           bounded, so the trivia stays the star (section 12). */}
@@ -1139,9 +1142,14 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           to stand there staring instead of speaking. */}
       {presenter ? (
         <Sequence from={span.from} layout="none">
+          {/* No backdrop of its own. A 16:9 look only covers about a third of a
+              vertical frame, so painting the rest flat left the presenter
+              floating in a black void -- worst of all on the hook, which is the
+              first frame and the whole decision window. The episode's own
+              background carries the rest, so the band reads as a cut-in over
+              the scene. A full-height avatar covers it completely anyway. */}
           <AbsoluteFill
             style={{
-              backgroundColor: PRESENTER_BACKDROP,
               justifyContent: 'center',
               alignItems: 'center',
             }}
