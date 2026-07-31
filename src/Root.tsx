@@ -665,9 +665,16 @@ const EP_FPS = 30;
 // published with the question under the back arrow and the caption colliding
 // with the handle. TikTok and Instagram are worse at the bottom, so these are
 // sized for the worst case and used everywhere.
+// Matches the backdrop HeyGen renders the presenter against, so a 16:9 look
+// blends into the frame instead of reading as a clip pasted onto black.
+const PRESENTER_BACKDROP = '#12100F';
 const EP_SAFE_TOP = 300;      // ~16% of 1920
 const EP_SAFE_BOTTOM = 520;   // ~27% — the action rail and description sit here
 const EP_SAFE_SIDE = 96;
+// The brand mark and store URL sit in a strip of their own under the safe top.
+// Content has to start below it: both used to begin at EP_SAFE_TOP, so a long
+// question wrapped straight through "Ruoth" and "ruothstore.com".
+const EP_HEADER_H = 150;
 
 // Speech rate measured from real narration takes, used ONLY when a beat has no
 // measured audio (the free-voice fallback path). Deliberately a named constant:
@@ -782,7 +789,7 @@ const EpStage: React.FC<{
           alignItems: 'center',
           paddingLeft: EP_SAFE_SIDE,
           paddingRight: EP_SAFE_SIDE,
-          paddingTop: EP_SAFE_TOP,
+          paddingTop: EP_SAFE_TOP + EP_HEADER_H,
           paddingBottom: EP_SAFE_BOTTOM,
         }}
       >
@@ -938,7 +945,7 @@ const EpStage: React.FC<{
         justifyContent: hasStill ? 'flex-start' : 'center',
         paddingLeft: EP_SAFE_SIDE,
         paddingRight: EP_SAFE_SIDE,
-        paddingTop: EP_SAFE_TOP,
+        paddingTop: EP_SAFE_TOP + EP_HEADER_H,
         paddingBottom: EP_SAFE_BOTTOM + 80,
       }}
     >
@@ -1111,14 +1118,35 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           carries no alpha, and a keyed webm lost it), so the presenter shipped
           as a white box and then a green one. HeyGen now renders them standing
           in the episode's own scene, so the clip IS the frame. */}
+      {/* The clip is drawn at its own shape rather than stretched to fill.
+          A full-body avatar is already vertical and covers the frame; a
+          photo-avatar look is 16:9 and sits as a wide band, centred, with the
+          episode's own backdrop carrying the rest. Forcing that band to fill
+          would mean a 3x blow-up of a 620px source for the sake of a crop
+          nobody asked for. The letterbox itself is trimmed before the render
+          (scripts/crop-presenter.py), so the band is presenter, not bars. */}
+      {/* Wrapped in a Sequence so the clip is played from ITS OWN first frame.
+          Without this it runs on composition time: the hook presenter looked
+          right only because the hook starts at frame 0, while the reveal
+          presenter — a couple of hundred frames in — was already past the end
+          of its clip, so Remotion held the last frame and the avatar appeared
+          to stand there staring instead of speaking. */}
       {presenter ? (
-        <AbsoluteFill style={{ backgroundColor: '#000' }}>
-          <OffthreadVideo
-            src={resolveMedia(presenter.video_url)!}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            muted
-          />
-        </AbsoluteFill>
+        <Sequence from={span.from} layout="none">
+          <AbsoluteFill
+            style={{
+              backgroundColor: PRESENTER_BACKDROP,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <OffthreadVideo
+              src={resolveMedia(presenter.video_url)!}
+              style={{ width: '100%', height: 'auto', maxHeight: '100%' }}
+              muted
+            />
+          </AbsoluteFill>
+        </Sequence>
       ) : null}
 
       {/* The hook beat carries no caption: it is already the whole screen. */}

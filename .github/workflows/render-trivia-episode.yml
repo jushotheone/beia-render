@@ -77,6 +77,9 @@ jobs:
           sudo apt-get update
           # espeak-ng is Kokoro's phonemiser fallback
           sudo apt-get install -y espeak-ng
+          # Real ffmpeg. Remotion bundles one, but its build could not parse a
+          # colorkey/format chain and cannot do cropdetect either.
+          sudo apt-get install -y ffmpeg
           sudo apt-get install -y \
             libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
             libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
@@ -148,6 +151,27 @@ jobs:
               echo "FAILED to fetch $name from $url"; exit 1
             fi
           done
+          # Trim the letterbox off the presenter clips.
+          #
+          # A photo-avatar look is 16:9, so HeyGen returns it as a band with
+          # black above and below and the presenter showed up as a stripe in the
+          # middle of the episode.  The trim leaves a genuinely vertical avatar
+          # untouched, so both kinds of look come out right.
+          for f in public/presenter-*.mp4; do
+            [ -e "$f" ] || continue
+            box=$(python3 scripts/crop-presenter.py "$f" || true)
+            if [ -z "$box" ]; then
+              echo "$(basename "$f") already fills its frame"; continue
+            fi
+            out="${f%.mp4}-trim.mp4"
+            if ffmpeg -v error -i "$f" -vf "$box" -c:a copy "$out" -y; then
+              mv -f "$out" "$f"
+              echo "trimmed $(basename "$f") to ${box}"
+            else
+              rm -f "$out"; echo "trim FAILED for $(basename "$f") -- keeping the original"
+            fi
+          done
+
           # Rewrite the payload to the bare filenames the component resolves.
           node -e '
             const fs = require("fs");
