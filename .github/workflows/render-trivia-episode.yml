@@ -136,6 +136,21 @@ jobs:
             // version of a picture quiz.
             if (ep.image_url) jobs.push([ep.image_url, "still.png", () => {}]);
             if (ep.reveal_image_url) jobs.push([ep.reveal_image_url, "reveal.png", () => {}]);
+            // Shot-plan pictures. Same up-front rule as everything else: a
+            // fetch that fails mid-render kills an otherwise finished episode,
+            // so every asset is on disk before Remotion starts. Deduped by URL
+            // because two shots may legitimately share one picture.
+            {
+              const seen = new Map();
+              (ep.shots || []).forEach((s, i) => {
+                if (!s.media_url) return;
+                if (!seen.has(s.media_url)) {
+                  const ext = /\.(mp4|mov|webm)(\?|$)/i.test(s.media_url) ? "mp4" : "png";
+                  seen.set(s.media_url, "shot-" + i + "." + ext);
+                  jobs.push([s.media_url, seen.get(s.media_url), () => {}]);
+                }
+              });
+            }
             fs.writeFileSync("download_jobs.json", JSON.stringify(jobs.map(j => [j[0], j[1]])));
             fs.writeFileSync("episode.json", JSON.stringify(ep));
             console.log("assets to fetch: " + jobs.length);
@@ -182,6 +197,7 @@ jobs:
             (ep.presenter_clips || []).forEach(p => { if (p.video_url && byUrl.has(p.video_url)) p.video_url = byUrl.get(p.video_url); });
             if (ep.image_url && byUrl.has(ep.image_url)) ep.image_url = byUrl.get(ep.image_url);
             if (ep.reveal_image_url && byUrl.has(ep.reveal_image_url)) ep.reveal_image_url = byUrl.get(ep.reveal_image_url);
+            (ep.shots || []).forEach(s => { if (s.media_url && byUrl.has(s.media_url)) s.media_url = byUrl.get(s.media_url); });
             fs.writeFileSync("episode.json", JSON.stringify(ep));
           '
 

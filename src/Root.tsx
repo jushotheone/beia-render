@@ -612,6 +612,32 @@ type PresenterClip = {
   duration_seconds?: number | null;
 };
 
+// One slice of one beat, planned by the Episode Director in beia_core.
+//
+// The shot plan drives the BACKGROUND: what picture is on screen and how it
+// moves. The game layer (question, options, countdown, answer) stays beat-driven
+// in EpStage, which is how broadcast trivia actually works — the question holds
+// while the pictures cut behind it.
+//
+// Weights, never seconds. The Director cannot know how long a beat runs because
+// that comes from the measured mp3; it says only how the beat DIVIDES. A plan in
+// absolute seconds would desync the moment the voice came back longer than
+// predicted, and a desynced episode plays the answer over the question.
+type EpisodeShot = {
+  beat_index: number;
+  beat: string;
+  shot_type: string;
+  media_kind: string;
+  weight: number;
+  motion: string;
+  sound_cue?: string | null;
+  owns_frame?: boolean;
+  //: Filled by the asset step. Absent for renderer graphics, which have no
+  //: asset — those shots hold whatever picture was last on screen while the
+  //: graphic plays over it.
+  media_url?: string | null;
+};
+
 type EpisodeSpec = {
   format?: string;
   mechanic?: string;
@@ -634,6 +660,10 @@ type EpisodeSpec = {
   avatar_treatment?: string;
   presenter_clips?: PresenterClip[];
   duration_target?: number[];
+  //: The shot plan. Absent on older episodes, which fall back to the single
+  //: held still — the whole point of keeping that path alive is that a
+  //: re-render of an old episode must not break.
+  shots?: EpisodeShot[];
 };
 
 type BrandIdentity = {
@@ -698,6 +728,95 @@ const epBeatSeconds = (b: EpisodeBeat): number => {
 // 3-2-1 in half the time and gave the viewer no chance to answer — the pressure
 // beat is precisely where they are supposed to be deciding.
 const EP_MIN_PRESSURE_SECONDS = 3.2;
+
+// Divide each beat's REAL duration among the shots planned for it, by weight.
+// Returns one span per shot, in play order. A beat with no shots gets none, and
+// the background simply holds — which is the old behaviour, so an episode
+// planned without shots still renders.
+const epShotTimeline = (
+  beats: EpisodeBeat[],
+  shots: EpisodeShot[],
+  beatSpans: { from: number; to: number }[],
+) => {
+  const out: { shot: EpisodeShot; from: number; to: number }[] = [];
+  for (let i = 0; i < beats.length; i++) {
+    const mine = shots.filter((s) => s.beat_index === i);
+    if (!mine.length) continue;
+    const span = beatSpans[i];
+    if (!span) continue;
+    const total = mine.reduce((a, s) => a + (s.weight > 0 ? s.weight : 1), 0) || 1;
+    let at = span.from;
+    mine.forEach((s, k) => {
+      const w = s.weight > 0 ? s.weight : 1;
+      // The last shot absorbs the rounding, so the shots of a beat always sum
+      // to exactly the beat. Rounding each independently left one-frame gaps
+      // that flash the layer underneath.
+      const to = k === mine.length - 1
+        ? span.to
+        : Math.min(span.to, at + Math.round(((span.to - span.from) * w) / total));
+      out.push({ shot: s, from: at, to: Math.max(at + 1, to) });
+      at = to;
+    });
+  }
+  return out;
+};
+
+// The motion vocabulary, as the renderer's half of the contract with the
+// Director. Every name in `trivia_visual_taxonomy.MOTIONS` must resolve here —
+// a Director free to plan motion the renderer silently ignores is exactly the
+// failure mode where the pipeline reports success and the video is static.
+//
+// `t` is progress through the shot, 0..1. Returns a CSS transform plus an
+// optional filter.
+const epMotion = (
+  motion: string, t: number, shotFrames: number,
+): { transform: string; filter?: string } => {
+  // Moves are specified in ms in the taxonomy; convert once, here.
+  const atMs = (ms: number) => Math.min(1, (t * shotFrames) / ((ms / 1000) * EP_FPS));
+  const ease = (x: number) => 1 - Math.pow(1 - x, 3);       // ease_out cubic
+  const back = (x: number) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2);
+
+  switch (motion) {
+    case 'push_in':
+      return { transform: `scale(${1 + 0.10 * t})` };
+    case 'pull_out':
+      return { transform: `scale(${1.10 - 0.10 * t})` };
+    case 'punch_in': {
+      const p = ease(atMs(220));
+      return { transform: `scale(${1.08 - 0.08 * p})` };
+    }
+    case 'whip_left': {
+      const p = ease(atMs(260));
+      return {
+        transform: `translateX(${-14 * (1 - p)}%) scale(${1.04 - 0.04 * p})`,
+        filter: p < 1 ? `blur(${10 * (1 - p)}px)` : undefined,
+      };
+    }
+    case 'slide_up': {
+      const p = ease(atMs(320));
+      return { transform: `translateY(${60 * (1 - p)}px)` };
+    }
+    case 'pop': {
+      const p = atMs(260);
+      return { transform: `scale(${0.9 + 0.1 * back(p)})` };
+    }
+    case 'shake': {
+      const p = atMs(380);
+      const amp = 10 * (1 - p);
+      return { transform: `translateX(${Math.sin(p * Math.PI * 6) * amp}px)` };
+    }
+    case 'pulse': {
+      const beat = (t * shotFrames) / (0.6 * EP_FPS);
+      return { transform: `scale(${1 + 0.03 * Math.abs(Math.sin(beat * Math.PI))})` };
+    }
+    case 'glow':
+      return { transform: 'scale(1)', filter: `brightness(${1 + 0.25 * (1 - ease(atMs(520)))})` };
+    case 'hold':
+    case 'cut':
+    default:
+      return { transform: 'scale(1)' };
+  }
+};
 
 const epTimeline = (beats: EpisodeBeat[]) => {
   let at = 0;
@@ -772,6 +891,13 @@ const EpStage: React.FC<{
         headFont, bodyFont, hasPresenter }) => {
   // The question is the show's voice — it carries the brand's header typeface.
   // Choices and figures are UI and stay on the body face for legibility.
+  // The presenter owns his beats outright. He appears on the hook and the
+  // reveal and he SAYS both, so every element this component draws -- the
+  // question, the options, the countdown, the answer band -- would be words
+  // printed over a talking face. The caption is drawn elsewhere and stays,
+  // because it sits low over a chest rather than across a face.
+  if (hasPresenter) return null;
+
   const font = bodyFont;
   const ink = onLight ? '#111111' : '#FFFFFF';
   const mechanic = episode.mechanic || 'reveal';
@@ -950,16 +1076,6 @@ const EpStage: React.FC<{
     body = null;
   }
 
-  // ...and it comes down for the presenter too. The choice list occupies the
-  // middle of the frame, which is exactly where a presenter's face is, so the
-  // options printed straight across it. The question stays -- it sits on its
-  // own graded band above his head -- but the options wait for a beat he is
-  // not in. Formats that need the options up throughout must not put a
-  // presenter on every beat; that pairing is blocked when the brief is built.
-  if (hasPresenter) {
-    body = null;
-  }
-
   // With a still behind it the game moves to the top third, so the picture the
   // viewer is being asked to identify is not covered by the question about it.
   return (
@@ -1030,6 +1146,25 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
   const hasBeatAudio = beats.some((b) => b.audio_url);
 
+  // ── The shot plan ─────────────────────────────────────────────────────────
+  // Where the episode stops being a slideshow. The Director divides each beat
+  // into shots; this finds the one on screen now, and holds the last picture
+  // through shots that carry no asset (renderer graphics, which play OVER
+  // whatever was there rather than replacing it).
+  const shotSpans = epShotTimeline(beats, episode.shots || [], spans);
+  const activeShotIdx = shotSpans.findIndex((s) => frame >= s.from && frame < s.to);
+
+  // The last shot at or before now that actually carries a picture. Without
+  // this, every question card and countdown would black the frame out.
+  const pictureShot = (() => {
+    if (!shotSpans.length) return null;
+    const upto = activeShotIdx >= 0 ? activeShotIdx : shotSpans.length - 1;
+    for (let i = upto; i >= 0; i--) {
+      if (shotSpans[i].shot.media_url) return shotSpans[i];
+    }
+    return null;
+  })();
+
   // On a visual format the picture IS the challenge, so it sits behind every
   // beat from frame 0 — the viewer must never wait for the thing they are being
   // asked to identify.
@@ -1082,11 +1217,48 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
             />
           </AbsoluteFill>
         </AbsoluteFill>
+      ) : pictureShot ? (
+        (() => {
+          // THE DIRECTED PATH. One picture per shot, each with its own planned
+          // motion, cutting every second or two — instead of one still held for
+          // thirty-five seconds under a slow linear zoom, which is what every
+          // published episode was.
+          const { shot, from, to } = pictureShot;
+          const shotFrames = Math.max(1, to - from);
+          const t = Math.min(1, Math.max(0, (frame - from) / shotFrames));
+          const { transform, filter } = epMotion(shot.motion, t, shotFrames);
+          const url = resolveMedia(shot.media_url!)!;
+          const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(shot.media_url!);
+          const style = {
+            width: '100%', height: '100%', objectFit: 'cover' as const,
+            transform, filter,
+          };
+          return (
+            <AbsoluteFill>
+              {/* Keyed on the shot so a cut is a real cut: without the key,
+                  React reuses the element and the browser cross-fades the
+                  source swap, which turns every planned cut into a dissolve. */}
+              {isVideo
+                ? <OffthreadVideo key={`${from}`} src={url} style={style} muted />
+                : <Img key={`${from}`} src={url} style={style} />}
+              {/* Scrim: captions and choices must stay readable over any photo.
+                  Lighter than the old one — the art direction now delivers its
+                  own deep shadows, so the heavy gradient that rescued flat
+                  `low`-quality images just muddies a graded frame. */}
+              <AbsoluteFill
+                style={{
+                  background:
+                    'linear-gradient(to bottom, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.62) 100%)',
+                }}
+              />
+            </AbsoluteFill>
+          );
+        })()
       ) : still ? (
         <AbsoluteFill>
-          {/* A held still reads as a slide. A slow push keeps the frame alive
-              for the whole episode without competing with the game — the same
-              treatment the repurpose reel already uses on static pins. */}
+          {/* THE LEGACY PATH, kept so re-rendering an older episode that has no
+              shot plan still works. A held still reads as a slide, so a slow
+              push at least keeps the frame alive. */}
           <Img
             src={still}
             style={{
@@ -1101,7 +1273,6 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
               )})`,
             }}
           />
-          {/* Scrim: captions and choices must stay readable over any photo. */}
           <AbsoluteFill
             style={{
               background:
@@ -1149,47 +1320,21 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
           <AbsoluteFill>
             <OffthreadVideo
               src={resolveMedia(presenter.video_url)!}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                // Pushed down and in, anchored at the top edge. A stock avatar
-                // is framed head-up and centred, which puts the eyes at almost
-                // exactly the height the question block occupies -- so the text
-                // plate landed across them like a blindfold. Growing from the
-                // top drops the face clear of the text band and leaves the hat
-                // behind it, which the gradient below darkens. The extra reach
-                // crops his waist, which costs nothing on a talking head.
-                transform: 'scale(1.3)',
-                transformOrigin: '50% 0%',
-              }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               muted
-            />
-            {/* A band under the question, only where there is a presenter. He
-                stands centred and head-up, so the question lands across his
-                eyes -- white words on a lit face, which is unreadable and looks
-                like a mistake. Broadcast solves this with a graded strip rather
-                than by moving the talent, because any reframing that clears the
-                text also crops him. The gradient dies out well above the
-                caption, so the rest of the frame is untouched. */}
-            <AbsoluteFill
-              style={{
-                background:
-                  'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, ' +
-                  'rgba(0,0,0,0.62) 38%, rgba(0,0,0,0) 100%)',
-                height: EP_SAFE_TOP + EP_HEADER_H + 260,
-              }}
             />
           </AbsoluteFill>
         </Sequence>
       ) : null}
 
-      {/* The game plays ON TOP of the presenter, never instead of him. This
-          block used to be suppressed for any beat that had a presenter, which
-          was survivable while the presenter only appeared on the hook and the
-          reveal. On a full-presenter episode it meant the question was never
-          drawn at all: the viewer watched a chef talk and then got handed the
-          answer. The question IS the game -- it stays up. */}
+      {/* When the presenter is on screen the frame is HIS. He is on the hook
+          and the reveal only, and on both he is saying the words -- so
+          printing them over him is redundant text on a face. Two attempts to
+          make that readable (a graded band, then reframing him downward) both
+          treated the symptom: the text was still in front of the presenter.
+          The question carries the middle beats, where there is no one to
+          stand in front of. Captions stay: a caption sits low, over a chest,
+          which is where broadcast has always put them. */}
       <EpStage
         episode={episode}
         phase={phase}
