@@ -940,6 +940,15 @@ const EpStage: React.FC<{
     body = Figures;
   }
 
+  // The menu comes down when the answer goes up. An ordering question whose
+  // answer is a SEQUENCE rather than one of the options needs its own band, and
+  // stacking that under four choices overran the padding and printed the answer
+  // straight through the caption -- two lines of text on the same pixels, both
+  // unreadable. Once the answer is on screen the options have done their job.
+  if (Answer) {
+    body = null;
+  }
+
   // With a still behind it the game moves to the top third, so the picture the
   // viewer is being asked to identify is not covered by the question about it.
   return (
