@@ -1100,11 +1100,69 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         ? <Audio src={resolveMedia(narrationUrl)!} />
         : null}
 
-      {/* The game stands down while the presenter is on screen. He is only
-          there for the hook and the reveal, and the band sits across the middle
-          of the frame -- leaving the question up meant the clip cut straight
-          through it. The scene behind him still shows, so the frame stays full. */}
-      {presenter ? null : (
+      {/* The presenter is the BACKDROP for its beat, not a panel on top of one.
+          HeyGen renders a stock video avatar at the full 1080x1920 already
+          standing in this episode's own still, so the clip is the whole picture
+          and it covers the frame edge to edge.
+
+          It used to be drawn at its own shape over a dimmed copy of the scene.
+          That was written for photo-avatar looks, which come back 16:9 and only
+          cover a band. On a full-height video avatar it put HIS copy of the
+          still, at a different scale and brightness, on top of the episode's
+          copy -- so the clip read as a lit rectangle pasted over the frame and
+          the presenter appeared to float. Covering the frame removes the seam;
+          there is nothing left to dim, so the scrim is gone too.
+
+          Wrapped in a Sequence so the clip plays from ITS OWN first frame.
+          Without it the clip runs on composition time: a reveal presenter a
+          couple of hundred frames in was already past the end of its clip, so
+          Remotion held the last frame and the avatar stood there staring. */}
+      {presenter ? (
+        <Sequence from={span.from} layout="none">
+          <AbsoluteFill>
+            <OffthreadVideo
+              src={resolveMedia(presenter.video_url)!}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                // Pushed down and in, anchored at the top edge. A stock avatar
+                // is framed head-up and centred, which puts the eyes at almost
+                // exactly the height the question block occupies -- so the text
+                // plate landed across them like a blindfold. Growing from the
+                // top drops the face clear of the text band and leaves the hat
+                // behind it, which the gradient below darkens. The extra reach
+                // crops his waist, which costs nothing on a talking head.
+                transform: 'scale(1.3)',
+                transformOrigin: '50% 0%',
+              }}
+              muted
+            />
+            {/* A band under the question, only where there is a presenter. He
+                stands centred and head-up, so the question lands across his
+                eyes -- white words on a lit face, which is unreadable and looks
+                like a mistake. Broadcast solves this with a graded strip rather
+                than by moving the talent, because any reframing that clears the
+                text also crops him. The gradient dies out well above the
+                caption, so the rest of the frame is untouched. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, ' +
+                  'rgba(0,0,0,0.62) 38%, rgba(0,0,0,0) 100%)',
+                height: EP_SAFE_TOP + EP_HEADER_H + 260,
+              }}
+            />
+          </AbsoluteFill>
+        </Sequence>
+      ) : null}
+
+      {/* The game plays ON TOP of the presenter, never instead of him. This
+          block used to be suppressed for any beat that had a presenter, which
+          was survivable while the presenter only appeared on the hook and the
+          reveal. On a full-presenter episode it meant the question was never
+          drawn at all: the viewer watched a chef talk and then got handed the
+          answer. The question IS the game -- it stays up. */}
       <EpStage
         episode={episode}
         phase={phase}
@@ -1116,62 +1174,6 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         headFont={headFont}
         bodyFont={bodyFont}
       />
-      )}
-
-      {/* Presenter composites OVER the game and never covers it — bottom-right,
-          bounded, so the trivia stays the star (section 12). */}
-      {/* The presenter takes the WHOLE frame for its beat, then the game takes
-          it back — a cut, which is what section 12 describes. It used to be
-          composited as a corner rectangle, which needs the clip to have a
-          transparent background; three attempts proved that impossible (mp4
-          carries no alpha, and a keyed webm lost it), so the presenter shipped
-          as a white box and then a green one. HeyGen now renders them standing
-          in the episode's own scene, so the clip IS the frame. */}
-      {/* The clip is drawn at its own shape rather than stretched to fill.
-          A full-body avatar is already vertical and covers the frame; a
-          photo-avatar look is 16:9 and sits as a wide band, centred, with the
-          episode's own backdrop carrying the rest. Forcing that band to fill
-          would mean a 3x blow-up of a 620px source for the sake of a crop
-          nobody asked for. The letterbox itself is trimmed before the render
-          (scripts/crop-presenter.py), so the band is presenter, not bars. */}
-      {/* Wrapped in a Sequence so the clip is played from ITS OWN first frame.
-          Without this it runs on composition time: the hook presenter looked
-          right only because the hook starts at frame 0, while the reveal
-          presenter — a couple of hundred frames in — was already past the end
-          of its clip, so Remotion held the last frame and the avatar appeared
-          to stand there staring instead of speaking. */}
-      {presenter ? (
-        <Sequence from={span.from} layout="none">
-          {/* No backdrop of its own. A 16:9 look only covers about a third of a
-              vertical frame, so painting the rest flat left the presenter
-              floating in a black void -- worst of all on the hook, which is the
-              first frame and the whole decision window. The episode's own
-              background carries the rest, so the band reads as a cut-in over
-              the scene. A full-height avatar covers it completely anyway. */}
-          <AbsoluteFill
-            style={{
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            {/* The scene is pushed back so it reads as a backdrop rather than a
-                second panel. Without this the frame was three stacked pictures
-                -- food, presenter, food -- which is the split-frame look the
-                visual gate rejects, and rightly. Blurred and dimmed, the band
-                is unambiguously the subject. */}
-            <AbsoluteFill
-              // A plain scrim, not backdropFilter: the filter blurred the
-              // presenter along with the scene, whatever the stacking order.
-              style={{ backgroundColor: 'rgba(0,0,0,0.66)' }}
-            />
-            <OffthreadVideo
-              src={resolveMedia(presenter.video_url)!}
-              style={{ width: '100%', height: 'auto', maxHeight: '100%' }}
-              muted
-            />
-          </AbsoluteFill>
-        </Sequence>
-      ) : null}
 
       {/* The hook beat carries no caption: it is already the whole screen. */}
       {phase === 'hook' ? null : (
