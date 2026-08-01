@@ -767,8 +767,9 @@ const EpStage: React.FC<{
   onLight: boolean;
   headFont: string;
   bodyFont: string;
+  hasPresenter: boolean;
 }> = ({ episode, phase, revealed, accentColor, pressureProgress, hasStill, onLight,
-        headFont, bodyFont }) => {
+        headFont, bodyFont, hasPresenter }) => {
   // The question is the show's voice — it carries the brand's header typeface.
   // Choices and figures are UI and stay on the body face for legibility.
   const font = bodyFont;
@@ -949,6 +950,16 @@ const EpStage: React.FC<{
     body = null;
   }
 
+  // ...and it comes down for the presenter too. The choice list occupies the
+  // middle of the frame, which is exactly where a presenter's face is, so the
+  // options printed straight across it. The question stays -- it sits on its
+  // own graded band above his head -- but the options wait for a beat he is
+  // not in. Formats that need the options up throughout must not put a
+  // presenter on every beat; that pairing is blocked when the brief is built.
+  if (hasPresenter) {
+    body = null;
+  }
+
   // With a still behind it the game moves to the top third, so the picture the
   // viewer is being asked to identify is not covered by the question about it.
   return (
@@ -993,10 +1004,17 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
   const beats = episode?.beats || [];
   const spans = epTimeline(beats);
 
-  const activeIndex = Math.max(
-    0,
-    spans.findIndex((s) => frame >= s.from && frame < s.to),
-  );
+  // Past the end of the last beat, HOLD the last beat. The composition can run
+  // slightly longer than the beats do (audio padding, the pressure floor), and
+  // falling back to index 0 there replayed the HOOK -- presenter, hook question
+  // and all -- for the final second, after the answer had already been given.
+  const foundIndex = spans.findIndex((s) => frame >= s.from && frame < s.to);
+  const activeIndex =
+    foundIndex >= 0
+      ? foundIndex
+      : frame >= (spans[spans.length - 1]?.to ?? 0)
+      ? Math.max(0, spans.length - 1)
+      : 0;
   const active = beats[activeIndex] || {};
   const phase = String(active.beat || 'hook');
   const revealed = beats
@@ -1182,6 +1200,7 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
         onLight={onLight}
         headFont={headFont}
         bodyFont={bodyFont}
+        hasPresenter={Boolean(presenter)}
       />
 
       {/* The hook beat carries no caption: it is already the whole screen. */}
