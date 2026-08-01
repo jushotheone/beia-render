@@ -1,0 +1,257 @@
+{
+ "episode": {
+  "format": "did_you_know_ingredient",
+  "mechanic": "reveal",
+  "hook": "Why is vanilla so expensive?",
+  "question": "What makes vanilla beans so costly to produce?",
+  "answer": "Hand-pollination is required.",
+  "payoff": "Vanilla orchids are native to Mexico and naturally pollinated by Melipona bees. Outside Mexico, like in Madagascar, they must be hand-pollinated, increasing costs.",
+  "choices": [],
+  "cta": "Share with a chef friend",
+  "beats": [
+   {
+    "beat": "hook",
+    "spoken": "Why is vanilla so expensive?",
+    "display": "Why is vanilla so pricey?",
+    "duration_seconds": 1.718,
+    "audio_url": "RUOTH-KT-000009-beat-0.mp3"
+   },
+   {
+    "beat": "challenge",
+    "spoken": "What makes vanilla beans so costly to produce?",
+    "display": "What makes vanilla costly?",
+    "duration_seconds": 2.554,
+    "audio_url": "RUOTH-KT-000009-beat-1.mp3"
+   },
+   {
+    "beat": "clue",
+    "spoken": "Vanilla orchids are native to Mexico.",
+    "display": "Native to Mexico",
+    "duration_seconds": 2.043,
+    "audio_url": "RUOTH-KT-000009-beat-2.mp3"
+   },
+   {
+    "beat": "clue",
+    "spoken": "Their natural pollinators are Melipona bees.",
+    "display": "Pollinated by Melipona bees",
+    "duration_seconds": 2.043,
+    "audio_url": "RUOTH-KT-000009-beat-3.mp3"
+   },
+   {
+    "beat": "pressure",
+    "spoken": "But these bees aren't found outside Mexico.",
+    "display": "Bees absent elsewhere",
+    "duration_seconds": 2.183,
+    "audio_url": "RUOTH-KT-000009-beat-4.mp3"
+   },
+   {
+    "beat": "reveal",
+    "spoken": "Hand-pollination is required.",
+    "display": "Hand-pollination needed",
+    "duration_seconds": 1.254,
+    "audio_url": "RUOTH-KT-000009-beat-5.mp3"
+   },
+   {
+    "beat": "payoff",
+    "spoken": "Vanilla orchids are native to Mexico and naturally pollinated by Melipona bees. Outside Mexico, like in Madagascar, they must be hand-pollinated, increasing costs.",
+    "display": "Hand-pollination raises costs",
+    "duration_seconds": 8.638,
+    "audio_url": "RUOTH-KT-000009-beat-6.mp3"
+   },
+   {
+    "beat": "cta",
+    "spoken": "Send this to the chef who claims they know everything.",
+    "display": "Share with a chef friend",
+    "duration_seconds": 2.833,
+    "audio_url": "RUOTH-KT-000009-beat-7.mp3"
+   }
+  ],
+  "avatar_treatment": "none",
+  "presenter_clips": [],
+  "image_url": null,
+  "shots": [
+   {
+    "beat_index": 0,
+    "beat": "hook",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Extreme close detail \u2014 texture, steam, grain, edge. Vanilla orchids and beans on a table.",
+    "owns_frame": false,
+    "media_url": "ep001-shot00.png"
+   },
+   {
+    "beat_index": 0,
+    "beat": "hook",
+    "shot_type": "subject_wide",
+    "media_kind": "generated_still",
+    "weight": 1.5,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "The dish or subject, whole, in its setting. Vanilla orchids and beans on a table.",
+    "owns_frame": false,
+    "media_url": "ep001-shot01.png"
+   },
+   {
+    "beat_index": 1,
+    "beat": "challenge",
+    "shot_type": "question_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "slide_up",
+    "sound_cue": "question_in",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null
+   },
+   {
+    "beat_index": 1,
+    "beat": "challenge",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Extreme close detail \u2014 texture, steam, grain, edge. Vanilla orchids and beans on a table. From a much lower angle, close to the surface.",
+    "owns_frame": false,
+    "media_url": "ep001-shot02.png"
+   },
+   {
+    "beat_index": 2,
+    "beat": "clue",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Extreme close detail \u2014 texture, steam, grain, edge. Vanilla orchids and beans on a table. At the moment of change \u2014 steam rising, a cut opening, liquid moving.",
+    "owns_frame": false,
+    "media_url": "ep001-shot03.png"
+   },
+   {
+    "beat_index": 2,
+    "beat": "clue",
+    "shot_type": "ingredient_insert",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "cut",
+    "sound_cue": "transition_whoosh",
+    "brief": "A single ingredient or tool, isolated. Vanilla orchids and beans on a table.",
+    "owns_frame": false,
+    "media_url": "ep001-shot04.png"
+   },
+   {
+    "beat_index": 2,
+    "beat": "clue",
+    "shot_type": "process_action",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "cut",
+    "sound_cue": null,
+    "brief": "Hands doing the thing \u2014 chopping, pouring, folding. Vanilla orchids and beans on a table.",
+    "owns_frame": false,
+    "media_url": "ep001-shot05.png"
+   },
+   {
+    "beat_index": 3,
+    "beat": "clue",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Extreme close detail \u2014 texture, steam, grain, edge. Vanilla orchids and beans on a table. The raw, unprepared state of it.",
+    "owns_frame": false,
+    "media_url": "ep001-shot06.png"
+   },
+   {
+    "beat_index": 3,
+    "beat": "clue",
+    "shot_type": "ingredient_insert",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "cut",
+    "sound_cue": "transition_whoosh",
+    "brief": "A single ingredient or tool, isolated. Vanilla orchids and beans on a table. Focus on a different part of it than the obvious one.",
+    "owns_frame": false,
+    "media_url": "ep001-shot07.png"
+   },
+   {
+    "beat_index": 3,
+    "beat": "clue",
+    "shot_type": "process_action",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "cut",
+    "sound_cue": null,
+    "brief": "Hands doing the thing \u2014 chopping, pouring, folding. Vanilla orchids and beans on a table. Focus on a different part of it than the obvious one.",
+    "owns_frame": false,
+    "media_url": "ep001-shot08.png"
+   },
+   {
+    "beat_index": 4,
+    "beat": "pressure",
+    "shot_type": "countdown",
+    "media_kind": "renderer_graphic",
+    "weight": 3.0,
+    "motion": "pulse",
+    "sound_cue": "countdown_tick",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null
+   },
+   {
+    "beat_index": 5,
+    "beat": "reveal",
+    "shot_type": "answer_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "glow",
+    "sound_cue": "reveal_impact",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null
+   },
+   {
+    "beat_index": 6,
+    "beat": "payoff",
+    "shot_type": "educational_graphic",
+    "media_kind": "renderer_graphic",
+    "weight": 2.0,
+    "motion": "hold",
+    "sound_cue": null,
+    "brief": "The explanation that earns the authority. A person hand-pollinating a vanilla flower.",
+    "owns_frame": false,
+    "media_url": null
+   },
+   {
+    "beat_index": 6,
+    "beat": "payoff",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Extreme close detail \u2014 texture, steam, grain, edge. Vanilla orchids and beans on a table. Focus on a different part of it than the obvious one.",
+    "owns_frame": false,
+    "media_url": "ep001-shot09.png"
+   },
+   {
+    "beat_index": 7,
+    "beat": "cta",
+    "shot_type": "cta_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "slide_up",
+    "sound_cue": "cta_chime",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null
+   }
+  ]
+ },
+ "brandName": "Ruoth",
+ "accentColor": "#C9A227"
+}

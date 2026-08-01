@@ -1146,6 +1146,55 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
   const hasBeatAudio = beats.some((b) => b.audio_url);
 
+  // ── Sound design ──────────────────────────────────────────────────────────
+  // Until now the mix was two layers: a music bed and narration. Grepping the
+  // whole composition for whoosh, riser, impact, click, ding or sting returned
+  // nothing. Professional short-form feels expensive largely because the EAR is
+  // rewarded on every state change, and silence between words is the clearest
+  // tell that something was assembled rather than edited.
+  //
+  // These hang off the BEAT spine, which already exists and is driven by the
+  // measured narration, so they need no shot plan and cannot drift.
+  const sfx = (() => {
+    const out: { src: string; from: number; volume: number; duck: boolean }[] = [];
+    beats.forEach((b, i) => {
+      const at = spans[i]?.from ?? 0;
+      const name = String(b.beat || '');
+      if (name === 'hook')
+        out.push({ src: 'sfx/hook_impact.wav', from: at, volume: 0.55, duck: true });
+      if (name === 'reveal')
+        out.push({ src: 'sfx/reveal_impact.wav', from: at, volume: 0.6, duck: true });
+      if (name === 'payoff')
+        out.push({ src: 'sfx/correct_sting.wav', from: at, volume: 0.4, duck: false });
+      if (name === 'cta')
+        out.push({ src: 'sfx/cta_chime.wav', from: at, volume: 0.35, duck: false });
+      if (name === 'pressure') {
+        // One tick per second of the countdown, so the pressure beat is heard
+        // as well as seen. The ring already animates; this is what makes it
+        // feel like time running out rather than a graphic moving.
+        const end = spans[i]?.to ?? at;
+        for (let f = at; f < end - EP_FPS * 0.3; f += EP_FPS)
+          out.push({ src: 'sfx/countdown_tick.wav', from: Math.round(f), volume: 0.3, duck: false });
+      }
+    });
+    return out;
+  })();
+
+  // The two cues that must LAND duck the bed under themselves. Without it the
+  // impact fights the music instead of punctuating it — the difference between
+  // a mix and a pile of simultaneous sounds.
+  const duckWindows = sfx.filter((s) => s.duck).map((s) => [s.from, s.from + Math.round(EP_FPS * 0.9)]);
+  const musicAt = (f: number) => {
+    for (const [a, b] of duckWindows) {
+      if (f >= a && f < b) {
+        // Fast drop, slow recovery — how a real ducker behaves.
+        const t = (f - a) / (b - a);
+        return musicVolume * (0.25 + 0.75 * Math.min(1, Math.max(0, (t - 0.25) / 0.75)));
+      }
+    }
+    return musicVolume;
+  };
+
   // ── The shot plan ─────────────────────────────────────────────────────────
   // Where the episode stops being a slideshow. The Director divides each beat
   // into shots; this finds the one on screen now, and holds the last picture
@@ -1190,7 +1239,16 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#0B0B0C' }}>
-      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicAt} loop /> : null}
+
+      {/* Sound design. Local files, baked into the render image — a remote
+          fetch during a render is a single point of failure, and an episode
+          that loses its audio bed to a network blip is a failed episode. */}
+      {sfx.map((s, i) => (
+        <Sequence key={`sfx-${i}`} from={s.from}>
+          <Audio src={staticFile(s.src)} volume={s.volume} />
+        </Sequence>
+      ))}
 
       {still && isSilhouette ? (
         // A silhouette is an ISOLATED object on a light field, never a

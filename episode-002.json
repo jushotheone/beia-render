@@ -1,0 +1,285 @@
+{
+ "episode": {
+  "format": "did_you_know_ingredient",
+  "mechanic": "reveal",
+  "hook": "Why is vanilla so expensive?",
+  "question": "What makes vanilla beans so costly to produce?",
+  "answer": "Hand-pollination is required.",
+  "payoff": "Vanilla orchids are native to Mexico and naturally pollinated by Melipona bees. Outside Mexico, like in Madagascar, they must be hand-pollinated, increasing costs.",
+  "choices": [],
+  "cta": "Share with a chef friend",
+  "beats": [
+   {
+    "beat": "hook",
+    "spoken": "Why is vanilla so expensive?",
+    "display": "Why is vanilla so pricey?",
+    "duration_seconds": 1.718,
+    "scenes": [
+     "A single cured vanilla pod held between finger and thumb, lit from behind"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-0.mp3"
+   },
+   {
+    "beat": "challenge",
+    "spoken": "What makes vanilla beans so costly to produce?",
+    "display": "What makes vanilla costly?",
+    "duration_seconds": 2.554,
+    "scenes": [
+     "A wall of glass spice jars in a dark kitchen, one of them vanilla pods"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-1.mp3"
+   },
+   {
+    "beat": "clue",
+    "spoken": "Vanilla orchids are native to Mexico.",
+    "display": "Native to Mexico",
+    "duration_seconds": 2.043,
+    "scenes": [
+     "A wild vanilla orchid climbing a tree on a misty Mexican hillside",
+     "A Melipona bee crawling into the throat of the orchid flower"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-2.mp3"
+   },
+   {
+    "beat": "clue",
+    "spoken": "Their natural pollinators are Melipona bees.",
+    "display": "Pollinated by Melipona bees",
+    "duration_seconds": 2.043,
+    "scenes": [
+     "A Madagascan vanilla plantation at first light, rows of vines in mist"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-3.mp3"
+   },
+   {
+    "beat": "pressure",
+    "spoken": "But these bees aren't found outside Mexico.",
+    "display": "Bees absent elsewhere",
+    "duration_seconds": 2.183,
+    "scenes": [
+     "An empty flower waiting, no insect anywhere near it"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-4.mp3"
+   },
+   {
+    "beat": "reveal",
+    "spoken": "Hand-pollination is required.",
+    "display": "Hand-pollination needed",
+    "duration_seconds": 1.254,
+    "scenes": [
+     "A worker's hands lifting a vanilla flower with a bamboo needle"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-5.mp3"
+   },
+   {
+    "beat": "payoff",
+    "spoken": "Vanilla orchids are native to Mexico and naturally pollinated by Melipona bees. Outside Mexico, like in Madagascar, they must be hand-pollinated, increasing costs.",
+    "display": "Hand-pollination raises costs",
+    "duration_seconds": 8.638,
+    "scenes": [
+     "Hundreds of green pods laid out on drying blankets in the sun",
+     "A brass scale weighing a small handful of cured black pods"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-6.mp3"
+   },
+   {
+    "beat": "cta",
+    "spoken": "Send this to the chef who claims they know everything.",
+    "display": "Share with a chef friend",
+    "duration_seconds": 2.833,
+    "scenes": [
+     "A chef scraping seeds from a split pod into a copper pan"
+    ],
+    "audio_url": "RUOTH-KT-000009-beat-7.mp3"
+   }
+  ],
+  "avatar_treatment": "none",
+  "presenter_clips": [],
+  "image_url": null,
+  "shots": [
+   {
+    "beat_index": 0,
+    "beat": "hook",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "A single cured vanilla pod held between finger and thumb, lit from behind",
+    "owns_frame": false,
+    "media_url": "ep002-shot00.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 1,
+    "beat": "challenge",
+    "shot_type": "question_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "slide_up",
+    "sound_cue": "question_in",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null,
+    "requested_media": "renderer_graphic"
+   },
+   {
+    "beat_index": 1,
+    "beat": "challenge",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "A wall of glass spice jars in a dark kitchen, one of them vanilla pods",
+    "owns_frame": false,
+    "media_url": "ep002-shot01.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 2,
+    "beat": "clue",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "A wild vanilla orchid climbing a tree on a misty Mexican hillside",
+    "owns_frame": false,
+    "media_url": "ep002-shot02.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 2,
+    "beat": "clue",
+    "shot_type": "ingredient_insert",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "cut",
+    "sound_cue": "transition_whoosh",
+    "brief": "A Melipona bee crawling into the throat of the orchid flower",
+    "owns_frame": false,
+    "media_url": "ep002-shot03.png",
+    "requested_media": "generated_still"
+   },
+   {
+    "beat_index": 3,
+    "beat": "clue",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "A Madagascan vanilla plantation at first light, rows of vines in mist",
+    "owns_frame": false,
+    "media_url": "ep002-shot04.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 4,
+    "beat": "pressure",
+    "shot_type": "countdown",
+    "media_kind": "renderer_graphic",
+    "weight": 3.0,
+    "motion": "pulse",
+    "sound_cue": "countdown_tick",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null,
+    "requested_media": "renderer_graphic"
+   },
+   {
+    "beat_index": 4,
+    "beat": "pressure",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "An empty flower waiting, no insect anywhere near it",
+    "owns_frame": false,
+    "media_url": "ep002-shot05.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 5,
+    "beat": "reveal",
+    "shot_type": "answer_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "glow",
+    "sound_cue": "reveal_impact",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null,
+    "requested_media": "renderer_graphic"
+   },
+   {
+    "beat_index": 5,
+    "beat": "reveal",
+    "shot_type": "presenter_reaction",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "punch_in",
+    "sound_cue": "reveal_impact",
+    "brief": "A worker's hands lifting a vanilla flower with a bamboo needle",
+    "owns_frame": true,
+    "media_url": "ep002-shot06.png",
+    "requested_media": "stock_clip"
+   },
+   {
+    "beat_index": 6,
+    "beat": "payoff",
+    "shot_type": "educational_graphic",
+    "media_kind": "renderer_graphic",
+    "weight": 2.0,
+    "motion": "hold",
+    "sound_cue": null,
+    "brief": "The explanation that earns the authority. A person hand-pollinating a vanilla flower.",
+    "owns_frame": false,
+    "media_url": null,
+    "requested_media": "renderer_graphic"
+   },
+   {
+    "beat_index": 6,
+    "beat": "payoff",
+    "shot_type": "subject_macro",
+    "media_kind": "generated_still",
+    "weight": 1.0,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "Hundreds of green pods laid out on drying blankets in the sun",
+    "owns_frame": false,
+    "media_url": "ep002-shot07.png",
+    "requested_media": "generated_clip"
+   },
+   {
+    "beat_index": 7,
+    "beat": "cta",
+    "shot_type": "cta_card",
+    "media_kind": "renderer_graphic",
+    "weight": 1.5,
+    "motion": "slide_up",
+    "sound_cue": "cta_chime",
+    "brief": "",
+    "owns_frame": false,
+    "media_url": null,
+    "requested_media": "renderer_graphic"
+   },
+   {
+    "beat_index": 7,
+    "beat": "cta",
+    "shot_type": "subject_wide",
+    "media_kind": "generated_still",
+    "weight": 1.5,
+    "motion": "push_in",
+    "sound_cue": null,
+    "brief": "A chef scraping seeds from a split pod into a copper pan",
+    "owns_frame": false,
+    "media_url": "ep002-shot08.png",
+    "requested_media": "generated_clip"
+   }
+  ]
+ },
+ "brandName": "Ruoth",
+ "accentColor": "#C9A227"
+}
