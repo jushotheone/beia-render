@@ -1381,6 +1381,92 @@ const TriviaEpisodeComp: React.FC<TriviaEpisodeProps> = ({
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               muted
             />
+
+            {/* ── Anchoring the presenter in the room ────────────────────────
+                HeyGen hands back a finished 1080x1920 frame with the avatar
+                already over this episode's still, so we cannot touch the key.
+                What we CAN do is everything a compositor does after the key,
+                and without it he reads as a cut-out: lit flat and bright
+                against a warm, dark, side-lit scene, no shadow under him, and
+                nothing in front of him — so he floats rather than stands.
+
+                Four passes, in the order a grade would apply them. All are
+                gradients over the finished clip: no extra render cost, no API
+                call, and nothing here touches the avatar itself. */}
+
+            {/* 1. LIGHT DIRECTION. The scene is lit from frame left with deep
+                   fall-off to the right; the avatar arrives evenly lit. This
+                   re-imposes the scene's own key so the two agree. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'linear-gradient(100deg, rgba(255,196,120,0.16) 0%, ' +
+                  'rgba(255,170,90,0.05) 34%, rgba(0,0,0,0) 55%, ' +
+                  'rgba(0,0,0,0.30) 88%, rgba(0,0,0,0.46) 100%)',
+                mixBlendMode: 'soft-light',
+              }}
+            />
+
+            {/* 2. GRADE. Pulls his whites out of daylight and into the
+                   episode's amber, the same shift the stills already carry. */}
+            <AbsoluteFill
+              style={{
+                background: 'rgba(196,116,44,0.14)',
+                mixBlendMode: 'color',
+              }}
+            />
+
+            {/* 2b. HIGHLIGHT RESTRAINT. A white chef's jacket arrives as the
+                   brightest object in a frame whose stills are graded for
+                   rich blacks and restrained highlights, so he reads as lit
+                   by a different production. Multiply pulls only the bright
+                   values down and leaves the shadows alone — the whites land
+                   in the scene's amber instead of glowing over it. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(150,96,44,0.42) 0%, ' +
+                  'rgba(168,112,56,0.34) 45%, rgba(190,140,88,0.22) 100%)',
+                mixBlendMode: 'multiply',
+              }}
+            />
+
+            {/* 3. CONTACT SHADOW. A body standing in a room occludes the
+                   light reaching the surface it stands on. Without this the
+                   eye gets no depth cue at all and reads him as a sticker. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'radial-gradient(120% 42% at 50% 104%, rgba(0,0,0,0.72) 0%, ' +
+                  'rgba(0,0,0,0.40) 42%, rgba(0,0,0,0) 72%)',
+              }}
+            />
+
+            {/* 4. FOREGROUND OCCLUSION — the single strongest "he is in the
+                   room" cue. Something out of focus sits between camera and
+                   subject, so the frame has depth in front of him as well as
+                   behind. Deliberately soft and dark: it must read as a
+                   surface the shot is looking over, never as a bar. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'linear-gradient(to top, rgba(18,12,8,0.92) 0%, ' +
+                  'rgba(24,16,10,0.78) 5%, rgba(30,20,12,0.34) 11%, ' +
+                  'rgba(0,0,0,0) 17%)',
+                filter: 'blur(6px)',
+              }}
+            />
+
+            {/* 5. Optical vignette, matching the 50mm the stills are shot on.
+                   Ties his edges into the frame instead of leaving them the
+                   brightest thing in it. */}
+            <AbsoluteFill
+              style={{
+                background:
+                  'radial-gradient(78% 62% at 50% 42%, rgba(0,0,0,0) 55%, ' +
+                  'rgba(0,0,0,0.34) 88%, rgba(0,0,0,0.52) 100%)',
+              }}
+            />
           </AbsoluteFill>
         </Sequence>
       ) : null}

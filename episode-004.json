@@ -1,0 +1,306 @@
+{
+  "episode": {
+    "status": "complete",
+    "beats": [
+      {
+        "beat": "hook",
+        "spoken": "Which spice elevates tomatoes?",
+        "display": "Which spice elevates tomatoes?",
+        "audio_url": "beat-00-hook.mp3",
+        "duration_seconds": 2.122
+      },
+      {
+        "beat": "challenge",
+        "spoken": "What spice enhances tomatoes in West African cuisine?",
+        "display": "What spice enhances tomatoes?",
+        "audio_url": "beat-01-challenge.mp3",
+        "duration_seconds": 3.741
+      },
+      {
+        "beat": "clue",
+        "spoken": "This spice adds heat and aroma.",
+        "display": "Adds heat and aroma.",
+        "audio_url": "beat-02-clue.mp3",
+        "duration_seconds": 2.305
+      },
+      {
+        "beat": "clue",
+        "spoken": "It balances umami and acidity.",
+        "display": "Balances umami and acidity.",
+        "audio_url": "beat-03-clue.mp3",
+        "duration_seconds": 2.305
+      },
+      {
+        "beat": "pressure",
+        "spoken": "Cinnamon, Ginger, or Cardamom?",
+        "display": "\u2026",
+        "audio_url": "beat-04-pressure.mp3",
+        "duration_seconds": 2.305
+      },
+      {
+        "beat": "reveal",
+        "spoken": "It's Ginger!",
+        "display": "It's Ginger!",
+        "audio_url": "beat-05-reveal.mp3",
+        "duration_seconds": 1.025
+      },
+      {
+        "beat": "payoff",
+        "spoken": "Ginger's heat and aromatic compounds enhance tomatoes' umami and acidity, creating a balanced and flavorful dish.",
+        "display": "Ginger enhances umami and acidity.",
+        "audio_url": "beat-06-payoff.mp3",
+        "duration_seconds": 7.503
+      }
+    ],
+    "voice_provider": "elevenlabs",
+    "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+    "voice_duration_seconds": 21.306,
+    "avatar_treatment": "none",
+    "image_url": "https://pub-be53405869704fd1b2735668464c423c.r2.dev/trivia/079a8b50-ae50-40d4-a6e3-9438480c2176/still.png",
+    "reveal_image_url": "https://pub-be53405869704fd1b2735668464c423c.r2.dev/trivia/079a8b50-ae50-40d4-a6e3-9438480c2176/reveal.png",
+    "visual_brief": "A West African market with spices and fresh tomatoes on display.",
+    "shots": [
+      {
+        "beat_index": 0,
+        "beat": "hook",
+        "shot_type": "presenter_medium",
+        "media_kind": "presenter_clip",
+        "weight": 1.415,
+        "motion": "cut",
+        "sound_cue": "hook_impact",
+        "brief": "The presenter, mid-torso, speaking to camera. A West African market with spices and fresh tomatoes on display. The tools and surface around it rather than the thing itself.",
+        "owns_frame": true,
+        "media_url": null,
+        "requested_media": "presenter_clip"
+      },
+      {
+        "beat_index": 0,
+        "beat": "hook",
+        "shot_type": "subject_macro",
+        "media_kind": "generated_clip",
+        "weight": 0.707,
+        "motion": "push_in",
+        "sound_cue": null,
+        "brief": "Extreme close detail \u2014 texture, steam, grain, edge. A West African market with spices and fresh tomatoes on display. The tools and surface around it rather than the thing itself.",
+        "owns_frame": false,
+        "media_url": "f4-00.mp4",
+        "requested_media": "generated_clip"
+      },
+      {
+        "beat_index": 1,
+        "beat": "challenge",
+        "shot_type": "question_card",
+        "media_kind": "renderer_graphic",
+        "weight": 0.863,
+        "motion": "slide_up",
+        "sound_cue": "question_in",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 1,
+        "beat": "challenge",
+        "shot_type": "options_card",
+        "media_kind": "renderer_graphic",
+        "weight": 1.151,
+        "motion": "pop",
+        "sound_cue": "option_in",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 1,
+        "beat": "challenge",
+        "shot_type": "subject_wide",
+        "media_kind": "generated_clip",
+        "weight": 0.863,
+        "motion": "push_in",
+        "sound_cue": null,
+        "brief": "The dish or subject, whole, in its setting. A West African market with spices and fresh tomatoes on display. The tools and surface around it rather than the thing itself.",
+        "owns_frame": false,
+        "media_url": "f4-01.mp4",
+        "requested_media": "generated_clip"
+      },
+      {
+        "beat_index": 1,
+        "beat": "challenge",
+        "shot_type": "subject_wide",
+        "media_kind": "generated_still",
+        "weight": 0.863,
+        "motion": "push_in",
+        "sound_cue": null,
+        "brief": "The dish or subject, whole, in its setting. A West African market with spices and fresh tomatoes on display.",
+        "owns_frame": false,
+        "media_url": "f4-02.png",
+        "requested_media": "generated_clip"
+      },
+      {
+        "beat_index": 2,
+        "beat": "clue",
+        "shot_type": "ingredient_insert",
+        "media_kind": "generated_still",
+        "weight": 2.305,
+        "motion": "cut",
+        "sound_cue": "transition_whoosh",
+        "brief": "A single ingredient or tool, isolated. A West African market with spices and fresh tomatoes on display. The tools and surface around it rather than the thing itself.",
+        "owns_frame": false,
+        "media_url": "f4-03.png",
+        "requested_media": "generated_still"
+      },
+      {
+        "beat_index": 3,
+        "beat": "clue",
+        "shot_type": "ingredient_insert",
+        "media_kind": "generated_still",
+        "weight": 2.305,
+        "motion": "cut",
+        "sound_cue": "transition_whoosh",
+        "brief": "A single ingredient or tool, isolated. A West African market with spices and fresh tomatoes on display.",
+        "owns_frame": false,
+        "media_url": "f4-04.png",
+        "requested_media": "generated_still"
+      },
+      {
+        "beat_index": 4,
+        "beat": "pressure",
+        "shot_type": "countdown",
+        "media_kind": "renderer_graphic",
+        "weight": 0.768,
+        "motion": "pulse",
+        "sound_cue": "countdown_tick",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 4,
+        "beat": "pressure",
+        "shot_type": "strike_out",
+        "media_kind": "renderer_graphic",
+        "weight": 0.768,
+        "motion": "shake",
+        "sound_cue": "wrong_sting",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 4,
+        "beat": "pressure",
+        "shot_type": "options_card",
+        "media_kind": "renderer_graphic",
+        "weight": 0.768,
+        "motion": "pop",
+        "sound_cue": "option_in",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 5,
+        "beat": "reveal",
+        "shot_type": "answer_card",
+        "media_kind": "renderer_graphic",
+        "weight": 1.025,
+        "motion": "glow",
+        "sound_cue": "reveal_impact",
+        "brief": "",
+        "owns_frame": false,
+        "media_url": null,
+        "requested_media": "renderer_graphic"
+      },
+      {
+        "beat_index": 6,
+        "beat": "payoff",
+        "shot_type": "educational_graphic",
+        "media_kind": "generated_still",
+        "weight": 3.001,
+        "motion": "hold",
+        "sound_cue": null,
+        "brief": "The explanation that earns the authority. Ginger root next to ripe tomatoes, highlighting their pairing. The tools and surface around it rather than the thing itself.",
+        "owns_frame": false,
+        "media_url": "f4-05.png",
+        "requested_media": "generated_still"
+      },
+      {
+        "beat_index": 6,
+        "beat": "payoff",
+        "shot_type": "subject_macro",
+        "media_kind": "generated_still",
+        "weight": 1.501,
+        "motion": "push_in",
+        "sound_cue": null,
+        "brief": "Extreme close detail \u2014 texture, steam, grain, edge. A West African market with spices and fresh tomatoes on display.",
+        "owns_frame": false,
+        "media_url": "f4-06.png",
+        "requested_media": "generated_clip"
+      },
+      {
+        "beat_index": 6,
+        "beat": "payoff",
+        "shot_type": "process_action",
+        "media_kind": "generated_still",
+        "weight": 1.501,
+        "motion": "cut",
+        "sound_cue": null,
+        "brief": "Hands doing the thing \u2014 chopping, pouring, folding. A West African market with spices and fresh tomatoes on display. The tools and surface around it rather than the thing itself.",
+        "owns_frame": false,
+        "media_url": "f4-07.png",
+        "requested_media": "generated_clip"
+      },
+      {
+        "beat_index": 6,
+        "beat": "payoff",
+        "shot_type": "subject_macro",
+        "media_kind": "generated_clip",
+        "weight": 1.501,
+        "motion": "push_in",
+        "sound_cue": null,
+        "brief": "Extreme close detail \u2014 texture, steam, grain, edge. A West African market with spices and fresh tomatoes on display. Focus on a different part of it than the obvious one.",
+        "owns_frame": false,
+        "media_url": "f4-08.png",
+        "requested_media": "generated_clip"
+      }
+    ],
+    "shot_count": 16,
+    "production_gap": [
+      "4 shot(s) fell short: generated_clip would take the episode over its 26-unit budget"
+    ],
+    "production_cost_usd": 1.753765,
+    "cost_ceiling_usd": 2.0,
+    "notes": [
+      "beat 5 (reveal): 1.0s only supports 1 shot(s) above the 0.6s floor",
+      "4 shot(s) fell short: generated_clip would take the episode over its 26-unit budget",
+      "production tier: premium \u2014 up to 2 clip(s), 0 hero, $2.00 ceiling",
+      "shot 0 (subject_macro, hook): motion via kwaivgi/kling-v3.0-std ($0.63, 5s)",
+      "shot 1 (subject_wide, challenge): motion via kwaivgi/kling-v3.0-std ($0.63, 5s)",
+      "shot plan: 16 shots, 9 pictures produced",
+      "art direction: human_action, macro_detail, tabletop"
+    ],
+    "question": "What spice enhances tomatoes in West African cuisine?",
+    "answer": "Ginger",
+    "hook": "Which spice elevates tomatoes?",
+    "payoff": "Ginger's heat and aromatic compounds enhance tomatoes' umami and acidity, creating a balanced and flavorful dish.",
+    "choices": [
+      "Cinnamon",
+      "Ginger",
+      "Cardamom"
+    ],
+    "correct_index": 1,
+    "figures": [],
+    "cta": "",
+    "format": "flavour_pair",
+    "mechanic": "choices",
+    "pillar": "Recipe Design"
+  },
+  "brandName": "Ruoth",
+  "accentColor": "#C9A227",
+  "musicUrl": null
+}
