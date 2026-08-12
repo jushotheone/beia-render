@@ -477,6 +477,7 @@ type OfferCardProps = {
   cta?: string;          // e.g. "Shop now", "Start free"
   productImage?: string; // absolute URL of the real product shot (optional)
   brandName?: string;
+  logoUrl?: string;      // the brand's own mark — preferred over the name
   accentColor?: string;
   background?: string;   // card background when there is no full-bleed image
   textColor?: string;
@@ -489,7 +490,12 @@ const OfferCard: React.FC<OfferCardProps> = ({
   price,
   cta = 'Shop now',
   productImage,
-  brandName = 'BEIA',
+  // No 'BEIA' default. Every Ruoth and Pulsebit offer card shipped with BEIA at
+  // the top, because the caller fell back to that string and so did this prop —
+  // two defaults agreeing on the wrong brand. A card with no brand resolved is
+  // better carrying no mark than somebody else's.
+  brandName = '',
+  logoUrl,
   accentColor = '#C0392B',
   background = '#FFFFFF',
   textColor = '#111111',
@@ -499,12 +505,28 @@ const OfferCard: React.FC<OfferCardProps> = ({
     layout || (productImage ? 'image_top' : 'text_only');
   const font = 'Arial, Helvetica, sans-serif';
 
-  const Brand = (
+  // The real mark when the brand has one, the name when it does not, nothing at
+  // all when neither is known. Mirrors how TriviaReel already handles this.
+  const onDarkPanel = resolved === 'overlay';
+  const Brand = logoUrl ? (
+    <Img
+      src={logoUrl}
+      style={{
+        height: 56, width: 'auto', objectFit: 'contain',
+        // Marks supplied as dark monochrome vanish on the overlay layout's dark
+        // gradient, so they sit on a light chip there — same treatment the
+        // broadcast rail uses.
+        ...(onDarkPanel
+          ? { background: '#FFFFFF', borderRadius: 10, padding: '8px 14px' }
+          : {}),
+      }}
+    />
+  ) : brandName ? (
     <p style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: 2,
       color: accentColor, fontFamily: font, textTransform: 'uppercase' }}>
       {brandName}
     </p>
-  );
+  ) : null;
   const Price = price ? (
     <span style={{ display: 'inline-block', background: accentColor, color: '#FFFFFF',
       fontSize: 44, fontWeight: 700, padding: '10px 28px', borderRadius: 12,
