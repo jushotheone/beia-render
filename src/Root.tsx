@@ -28,12 +28,16 @@ type ReelProps = {
   images: string[];
   brandName?: string;
   accentColor?: string;
+  musicUrl?: string;
+  musicVolume?: number;
 };
 
 const QuoteVideo: React.FC<ReelProps> = ({
   images,
   brandName = 'BEIA',
   accentColor = '#F97316',
+  musicUrl,
+  musicVolume = 0.32,
 }) => {
   const frame = useCurrentFrame();
   const totalFrames = images.length * CARD_DURATION;
@@ -62,6 +66,7 @@ const QuoteVideo: React.FC<ReelProps> = ({
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#FFFFFF' }}>
+      {musicUrl ? <Audio src={resolveMedia(musicUrl)!} volume={musicVolume} loop /> : null}
       <div style={{
         display: 'flex',
         alignItems: 'center',

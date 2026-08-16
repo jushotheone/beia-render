@@ -22,6 +22,10 @@ on:
         description: "Accent colour (hex) for the progress bar"
         required: false
         default: "#F97316"
+      music_url:
+        description: "Owned or licensed music track URL for the quote reel"
+        required: false
+        default: ""
 
 jobs:
   render:
@@ -54,7 +58,12 @@ jobs:
           IMAGES: ${{ inputs.images }}
           BRAND_NAME: ${{ inputs.brand_name }}
           ACCENT_COLOR: ${{ inputs.accent_color }}
+          MUSIC_URL: ${{ inputs.music_url }}
         run: |
+          if [ -n "$MUSIC_URL" ]; then
+            curl --fail --location --silent --show-error "$MUSIC_URL" --output public/retention-music.mp3
+            test -s public/retention-music.mp3
+          fi
           node -e '
             const images = JSON.parse(process.env.IMAGES || "[]");
             if (!Array.isArray(images) || images.length === 0) {
@@ -64,6 +73,7 @@ jobs:
               images,
               brandName: process.env.BRAND_NAME || "BEIA",
               accentColor: process.env.ACCENT_COLOR || "#F97316",
+              musicUrl: process.env.MUSIC_URL ? "retention-music.mp3" : undefined,
             };
             require("fs").writeFileSync("props.json", JSON.stringify(props));
             console.log("props: " + images.length + " images, brand " + props.brandName);
