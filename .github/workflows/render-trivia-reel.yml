@@ -67,17 +67,31 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install headless Chrome system libraries + espeak-ng
-        # apt on the hosted runners can stall indefinitely. The Azure mirror
-        # Ign's out, the fallback to archive.ubuntu.com hangs mid-transfer, and
-        # apt has no timeout of its own — so the step sits there until the job
-        # budget runs out. On 2026-08-19 that wedged three consecutive trivia
-        # renders for the full 30 minutes each and the show shipped nothing all
-        # morning. Bound every transfer, retry it, force IPv4 (the usual cause
-        # of the stall), and cap the step: a slow mirror must cost minutes, not
-        # the whole render.
-        timeout-minutes: 10
+      # The runner image already ships these. Every render on 2026-08-19
+      # reported "0 newly installed" for this exact list — the only thing
+      # `apt-get update` bought was its own download, which on one of those
+      # runs cost 11.4 MB and 2min16s to then install nothing at all. So look
+      # first, and only reach for the mirror when something is really absent.
+      - name: Ensure headless Chrome system libraries
+        timeout-minutes: 8
         run: |
+          missing=""
+          for p in libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libxrandr2 \
+                   libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+                   libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2; do
+            dpkg -s "$p" >/dev/null 2>&1 || missing="$missing $p"
+          done
+          # The ALSA package was renamed for the t64 ABI transition, so accept
+          # whichever of the two this image carries.
+          dpkg -s libasound2t64 >/dev/null 2>&1 || dpkg -s libasound2 >/dev/null 2>&1 \
+            || missing="$missing libasound2t64"
+
+          if [ -z "$missing" ]; then
+            echo "all Chrome libraries already present in the runner image — apt not needed"
+            exit 0
+          fi
+
+          echo "missing:$missing — falling back to the apt mirror"
           apt_try() {
             sudo apt-get \
               -o Acquire::Retries=3 \
@@ -87,24 +101,31 @@ jobs:
               "$@"
           }
           apt_try update || apt_try update || true
-          # espeak-ng is Kokoro's phonemiser fallback
-          apt_try install -y espeak-ng || true
-          apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || true
-          # Say what actually landed rather than assuming it did. None of these
-          # is fatal here on its own — the Chrome libraries are normally already
-          # in the runner image, and the render fails loudly further down if
-          # something it truly needs is missing. But a silent partial install is
-          # how a render "succeeds" into an unwatchable file.
-          command -v espeak-ng >/dev/null && echo "espeak-ng: present" || echo "espeak-ng: MISSING"
+          # shellcheck disable=SC2086
+          apt_try install -y --no-install-recommends $missing \
+            || apt_try install -y --no-install-recommends ${missing/libasound2t64/libasound2} \
+            || true
 
+      # This reel ALWAYS narrates with Kokoro, so unlike the episode workflow
+      # its phonemiser is not optional and stays here. --no-install-recommends
+      # keeps it to the 6.4 MB that is genuinely needed, and the step is capped
+      # so a 15.6 kB/s mirror (see 2026-08-19) costs minutes, not the render.
+      - name: Install Kokoro's phonemiser
+        timeout-minutes: 8
+        run: |
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=20 \
+            -o Acquire::ForceIPv4=true \
+            update || true
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=20 \
+            -o Acquire::ForceIPv4=true \
+            install -y --no-install-recommends espeak-ng || true
+          command -v espeak-ng >/dev/null \
+            && echo "espeak-ng: present" \
+            || echo "espeak-ng: MISSING — Kokoro will fall back to its own phonemiser"
       - name: Install Node dependencies
         run: npm install
 
