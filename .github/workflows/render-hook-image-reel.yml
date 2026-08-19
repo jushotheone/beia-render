@@ -46,17 +46,36 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install headless Chrome system libraries
-        # apt on the hosted runners can stall indefinitely. The Azure mirror
-        # Ign's out, the fallback to archive.ubuntu.com hangs mid-transfer, and
-        # apt has no timeout of its own — so the step sits there until the job
-        # budget runs out. On 2026-08-19 that wedged three consecutive trivia
-        # renders for the full 30 minutes each and the show shipped nothing all
-        # morning. Bound every transfer, retry it, force IPv4 (the usual cause
-        # of the stall), and cap the step: a slow mirror must cost minutes, not
-        # the whole render.
-        timeout-minutes: 10
+      # The runner image already ships these. Every render on 2026-08-19
+      # reported "0 newly installed" for this exact list — the only thing
+      # `apt-get update` bought was its own download, which on one of those
+      # runs cost 11.4 MB and 2min16s to then install nothing at all. So look
+      # first, and only reach for the mirror when something is really absent.
+      - name: Ensure headless Chrome system libraries
+        timeout-minutes: 8
         run: |
+          missing=""
+          # Ubuntu 24.04's t64 ABI transition renamed several of these with a
+          # `t64` suffix — libasound2t64, libatk1.0-0t64, libatk-bridge2.0-0t64,
+          # libcups2t64 — and the runner image carries the NEW names. A first
+          # pass special-cased only libasound2, so it declared three of the
+          # others missing and went to the mirror to be told "0 newly
+          # installed": 102s and 11.4 MB to install nothing at all. Accept
+          # either name for every package rather than tracking which ones were
+          # renamed, because that list will move again.
+          for p in libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 libxrandr2 \
+                   libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+                   libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2; do
+            dpkg -s "$p" >/dev/null 2>&1 || dpkg -s "${p}t64" >/dev/null 2>&1 \
+              || missing="$missing $p"
+          done
+
+          if [ -z "$missing" ]; then
+            echo "all Chrome libraries already present in the runner image — apt not needed"
+            exit 0
+          fi
+
+          echo "missing:$missing — falling back to the apt mirror"
           apt_try() {
             sudo apt-get \
               -o Acquire::Retries=3 \
@@ -66,22 +85,10 @@ jobs:
               "$@"
           }
           apt_try update || apt_try update || true
-          apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || true
-          # Say what actually landed rather than assuming it did. None of these
-          # is fatal here on its own — the Chrome libraries are normally already
-          # in the runner image, and the render fails loudly further down if
-          # something it truly needs is missing. But a silent partial install is
-          # how a render "succeeds" into an unwatchable file.
-          echo "chrome libraries step done"
-
+          # shellcheck disable=SC2086
+          apt_try install -y --no-install-recommends $missing \
+            || apt_try install -y --no-install-recommends ${missing/libasound2t64/libasound2} \
+            || true
       - name: Install dependencies
         run: npm install
 

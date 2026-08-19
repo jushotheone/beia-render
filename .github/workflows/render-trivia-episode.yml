@@ -72,17 +72,37 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install headless Chrome system libraries + espeak-ng
-        # apt on the hosted runners can stall indefinitely. The Azure mirror
-        # Ign's out, the fallback to archive.ubuntu.com hangs mid-transfer, and
-        # apt has no timeout of its own — so the step sits there until the job
-        # budget runs out. On 2026-08-19 that wedged three consecutive trivia
-        # renders for the full 30 minutes each and the show shipped nothing all
-        # morning. Bound every transfer, retry it, force IPv4 (the usual cause
-        # of the stall), and cap the step: a slow mirror must cost minutes, not
-        # the whole render.
-        timeout-minutes: 10
+      # The runner image already ships these. Every trivia render on
+      # 2026-08-19 reported "0 newly installed" for this exact list — the only
+      # thing `apt-get update` bought was its own download, which on one of
+      # those runs cost 11.4 MB and 2min16s to then install nothing at all.
+      # So look first, and only reach for the mirror when something is really
+      # absent.
+      - name: Ensure headless Chrome system libraries
+        timeout-minutes: 8
         run: |
+          missing=""
+          # Ubuntu 24.04's t64 ABI transition renamed several of these with a
+          # `t64` suffix — libasound2t64, libatk1.0-0t64, libatk-bridge2.0-0t64,
+          # libcups2t64 — and the runner image carries the NEW names. A first
+          # pass special-cased only libasound2, so it declared three of the
+          # others missing and went to the mirror to be told "0 newly
+          # installed": 102s and 11.4 MB to install nothing at all. Accept
+          # either name for every package rather than tracking which ones were
+          # renamed, because that list will move again.
+          for p in libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 libxrandr2 \
+                   libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+                   libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2; do
+            dpkg -s "$p" >/dev/null 2>&1 || dpkg -s "${p}t64" >/dev/null 2>&1 \
+              || missing="$missing $p"
+          done
+
+          if [ -z "$missing" ]; then
+            echo "all Chrome libraries already present in the runner image — apt not needed"
+            exit 0
+          fi
+
+          echo "missing:$missing — falling back to the apt mirror"
           apt_try() {
             sudo apt-get \
               -o Acquire::Retries=3 \
@@ -92,27 +112,63 @@ jobs:
               "$@"
           }
           apt_try update || apt_try update || true
-          # espeak-ng is Kokoro's phonemiser fallback
-          apt_try install -y espeak-ng || true
-          # Real ffmpeg. Remotion bundles one, but its build could not parse a
-          # colorkey/format chain and cannot do cropdetect either.
-          apt_try install -y ffmpeg || true
-          apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || apt_try install -y \
-            libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
-            libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
-          || true
-          # Say what actually landed rather than assuming it did. None of these
-          # is fatal here on its own — the Chrome libraries are normally already
-          # in the runner image, and the render fails loudly further down if
-          # something it truly needs is missing. But a silent partial install is
-          # how a render "succeeds" into an unwatchable file.
-          command -v ffmpeg    >/dev/null && echo "ffmpeg: present"    || echo "ffmpeg: MISSING"
-          command -v espeak-ng >/dev/null && echo "espeak-ng: present" || echo "espeak-ng: MISSING"
+          # shellcheck disable=SC2086
+          apt_try install -y --no-install-recommends $missing \
+            || apt_try install -y --no-install-recommends ${missing/libasound2t64/libasound2} \
+            || true
+
+      # ffmpeg does NOT come from the Ubuntu mirror any more.
+      #
+      # On 2026-08-19 that mirror served this job at 15.6 kB/s: espeak-ng's
+      # 6.4 MB took 6min53s, ffmpeg's 92.8 MB never finished, and the step hit
+      # its cap with no ffmpeg and no episode — three times in a row, while an
+      # earlier run the same hour had been served at 31 MB/s. It is a lottery,
+      # and a show on a 6x/day cadence cannot buy a ticket every time.
+      #
+      # A per-transfer timeout cannot rescue this. The transfer never stalls,
+      # it just crawls, so Acquire::http::Timeout never fires — which is why
+      # bounding apt (the previous fix) turned a 30-minute hang into a
+      # 10-minute failure but still produced no video. The only real fix is to
+      # stop depending on that mirror: one file from GitHub's own CDN, on the
+      # network the runner is already talking to, cached so it is a
+      # once-a-week cost rather than a per-render one.
+      - name: Restore cached ffmpeg
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/ffmpeg-static
+          key: ffmpeg-static-linux64-gpl-v1
+
+      - name: Fetch ffmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: |
+          # No sudo anywhere here: actions/cache saves as the runner user, and
+          # a root-owned tree is how that save silently fails and every later
+          # render pays the download again.
+          url=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          mkdir -p "$HOME/ffmpeg-static/bin"
+          curl -sfL --retry 3 --retry-delay 5 --max-time 420 -o /tmp/ffmpeg.tar.xz "$url"
+          tar -xJf /tmp/ffmpeg.tar.xz -C /tmp
+          cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ffmpeg  "$HOME/ffmpeg-static/bin/"
+          cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ffprobe "$HOME/ffmpeg-static/bin/"
+          chmod +x "$HOME/ffmpeg-static/bin/ffmpeg" "$HOME/ffmpeg-static/bin/ffprobe"
+          rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg-master-latest-linux64-gpl
+
+      - name: Put ffmpeg on PATH and prove it runs
+        run: |
+          echo "$HOME/ffmpeg-static/bin" >> "$GITHUB_PATH"
+          "$HOME/ffmpeg-static/bin/ffmpeg"  -version | head -1
+          "$HOME/ffmpeg-static/bin/ffprobe" -version | head -1
+          # Prove the exact filter chain the presenter trim needs, rather than
+          # assuming a binary that answers -version can do the work. A missing
+          # or incapable ffmpeg does NOT fail the trim below — it keeps the
+          # letterboxed clip and ships an episode with the presenter as a
+          # stripe across the middle. That is a false success, so it dies here.
+          "$HOME/ffmpeg-static/bin/ffmpeg" -v error -f lavfi -i color=c=black:s=64x64:d=1 \
+            -frames:v 1 -vf "scale=32:192:flags=area,format=gray" \
+            -f rawvideo -y /dev/null
+          echo "ffmpeg can run the presenter-trim filter chain"
 
       - name: Install Node dependencies
         run: npm install
@@ -226,9 +282,29 @@ jobs:
             fs.writeFileSync("episode.json", JSON.stringify(ep));
           '
 
-      - name: Install Kokoro TTS (only when narration was not supplied)
+      # espeak-ng lives HERE, not in the setup block, because it is Kokoro's
+      # phonemiser and Kokoro only runs when beia_core could not supply the
+      # narration. On 2026-08-19 an episode that HAD its ElevenLabs narration
+      # still spent 6min53s dragging espeak-ng's 6.4 MB off a 15.6 kB/s mirror
+      # — and that was the delay that left ffmpeg no time and killed the
+      # render. Paying for the fallback on every run of the happy path is how
+      # the happy path died.
+      - name: Install Kokoro TTS + its phonemiser (only when narration was not supplied)
         if: steps.episode.outputs.needs_tts == 'true'
         run: |
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=20 \
+            -o Acquire::ForceIPv4=true \
+            update || true
+          sudo apt-get \
+            -o Acquire::Retries=3 \
+            -o Acquire::http::Timeout=20 \
+            -o Acquire::ForceIPv4=true \
+            install -y --no-install-recommends espeak-ng || true
+          command -v espeak-ng >/dev/null \
+            && echo "espeak-ng: present" \
+            || echo "espeak-ng: MISSING — Kokoro will fall back to its own phonemiser"
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install kokoro soundfile numpy
