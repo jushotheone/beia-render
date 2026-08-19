@@ -43,16 +43,40 @@ jobs:
           node-version: "20"
 
       - name: Install headless Chrome system libraries
+        # apt on the hosted runners can stall indefinitely. The Azure mirror
+        # Ign's out, the fallback to archive.ubuntu.com hangs mid-transfer, and
+        # apt has no timeout of its own — so the step sits there until the job
+        # budget runs out. On 2026-08-19 that wedged three consecutive trivia
+        # renders for the full 30 minutes each and the show shipped nothing all
+        # morning. Bound every transfer, retry it, force IPv4 (the usual cause
+        # of the stall), and cap the step: a slow mirror must cost minutes, not
+        # the whole render.
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          apt_try() {
+            sudo apt-get \
+              -o Acquire::Retries=3 \
+              -o Acquire::http::Timeout=20 \
+              -o Acquire::https::Timeout=20 \
+              -o Acquire::ForceIPv4=true \
+              "$@"
+          }
+          apt_try update || apt_try update || true
+          apt_try install -y \
             libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2t64 \
             libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 || \
-          sudo apt-get install -y \
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
+          || apt_try install -y \
             libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 \
             libxrandr2 libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
-            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2
+            libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2 \
+          || true
+          # Say what actually landed rather than assuming it did. None of these
+          # is fatal here on its own — the Chrome libraries are normally already
+          # in the runner image, and the render fails loudly further down if
+          # something it truly needs is missing. But a silent partial install is
+          # how a render "succeeds" into an unwatchable file.
+          echo "chrome libraries step done"
 
       - name: Install dependencies
         run: npm install
