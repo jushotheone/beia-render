@@ -1009,22 +1009,41 @@ const EpStage: React.FC<{
     </div>
   );
 
+  // A `calculation` episode's copy step is told to put "every number needed"
+  // on screen, which includes the figure that IS the answer (e.g. a "Net
+  // profit: $3" row) — the same $3 the viewer is being asked to work out.
+  // Unlike Choices and the Answer band below, this list had no reveal gate at
+  // all, so the answer sat on screen from frame one of every calculation
+  // episode. Mask any row whose value matches the answer until the reveal
+  // beat; the question mark keeps the row (and the layout) on screen so nothing
+  // jumps when it resolves.
+  const normForLeak = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const answerNorm = normForLeak(episode.answer || '');
+  const isAnswerFigure = (value: string) => {
+    if (!answerNorm) return false;
+    const v = normForLeak(value);
+    return v.length > 0 && (v === answerNorm || answerNorm.includes(v) || v.includes(answerNorm));
+  };
+
   const Figures = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%' }}>
-      {(episode.figures || []).map((f, i) => (
-        <div
-          key={i}
-          style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            fontFamily: font, fontSize: 48, color: '#FFFFFF',
-            background: 'rgba(255,255,255,0.08)', borderRadius: 14,
-            padding: '18px 26px',
-          }}
-        >
-          <span style={{ opacity: 0.75 }}>{f.label}</span>
-          <span style={{ fontWeight: 700 }}>{f.value}</span>
-        </div>
-      ))}
+      {(episode.figures || []).map((f, i) => {
+        const masked = !revealed && isAnswerFigure(f.value);
+        return (
+          <div
+            key={i}
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              fontFamily: font, fontSize: 48, color: '#FFFFFF',
+              background: 'rgba(255,255,255,0.08)', borderRadius: 14,
+              padding: '18px 26px',
+            }}
+          >
+            <span style={{ opacity: 0.75 }}>{f.label}</span>
+            <span style={{ fontWeight: 700 }}>{masked ? '?' : f.value}</span>
+          </div>
+        );
+      })}
     </div>
   );
 
