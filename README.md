@@ -24,3 +24,18 @@ npx remotion render QuoteReel out/reel.mp4 --props='{"images":["https://.../card
 `beia_core` → GitHub API `workflow_dispatch` (`render-video.yml`) with inputs
 `images`, `task_id`, `brand_name`, `accent_color` → render → artifact
 `reel-<task_id>` → `beia_core` downloads it → uploads to the brand's R2.
+
+## Tower clips (Blender, not Remotion)
+
+`render-tower-clip.yml` renders a cinematic clip of the live BEIA Tower — the
+console's public 3D office — in Blender Cycles:
+
+1. **export**: headless Chrome opens `<console>/broadcast/office?export=1`,
+   rides to the roof stop and exports the scene as a GLB (`tower/export-scene.mjs`,
+   repaired by `tower/fix-glb.cjs`).
+2. **render**: 20 runners each draw every 20th frame on the CPU (`tower/render.py`).
+3. **assemble**: ffmpeg stitches `clip.mp4` plus three QA stills into the artifact
+   `towerclip-<task_id>`.
+
+Camera moves live in `tower/shots.json`. Locally, with a GPU:
+`node tower/make-clip.mjs --shot establishing-orbit --url http://localhost:3000`.

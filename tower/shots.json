@@ -1,0 +1,80 @@
+{
+  "_about": "Saved camera moves for tower clips. Coordinates are the live scene's own units and axes (three.js, Y up), measured from an export taken at the roof stop (the default --stop): the roof deck is y\u22480, the tower stands at x=z=0, the street is \u2248 y -64. 'orbit' circles the tower; 'path' moves between keyframes. Rendered by tower/render.py --clip <name>.",
+  "shots": {
+    "establishing-orbit": {
+      "fps": 24,
+      "seconds": 4,
+      "orbit": {
+        "centre": [
+          0,
+          -24,
+          0
+        ],
+        "radius": 105,
+        "height": 22,
+        "fromDeg": -28,
+        "toDeg": 28
+      }
+    },
+    "crane-down": {
+      "fps": 24,
+      "seconds": 4,
+      "path": [
+        {
+          "pos": [
+            0,
+            62,
+            95
+          ],
+          "look": [
+            0,
+            -8,
+            0
+          ]
+        },
+        {
+          "pos": [
+            18,
+            -40,
+            88
+          ],
+          "look": [
+            0,
+            -34,
+            0
+          ]
+        }
+      ]
+    },
+    "facade-glide": {
+      "fps": 24,
+      "seconds": 4,
+      "path": [
+        {
+          "pos": [
+            -40,
+            -26,
+            34
+          ],
+          "look": [
+            -8,
+            -30,
+            0
+          ]
+        },
+        {
+          "pos": [
+            40,
+            -22,
+            34
+          ],
+          "look": [
+            8,
+            -26,
+            0
+          ]
+        }
+      ]
+    }
+  }
+}

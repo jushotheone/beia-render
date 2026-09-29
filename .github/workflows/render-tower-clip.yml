@@ -1,0 +1,235 @@
+name: Render tower clip
+
+# A cinematic clip of the live BEIA Tower (the console's 3D office), rendered
+# offline in Blender Cycles. Triggered by beia_core's tower_clip_tool via
+# workflow_dispatch.
+#
+#   export    opens the console's public office page in headless Chrome
+#             (software WebGL — no GPU on a runner), rides to the roof stop and
+#             exports the scene as it is right now. The data in the clip is
+#             whatever beia_core shows at that moment.
+#   render    20 runners each draw every 20th frame on the CPU — one runner
+#             would need hours; twenty share it in about twenty minutes.
+#   assemble  stitches the frames into an mp4 and pulls three stills for QA.
+#
+# Storage-blind and secret-free, like every workflow here: it needs only the
+# console's PUBLIC office URL, and hands back an artifact that beia_core
+# downloads and stores in the brand's own R2.
+#
+# Code: tower/ (export-scene.mjs, fix-glb.cjs, render.py, shots.json).
+
+on:
+  workflow_dispatch:
+    inputs:
+      shot:
+        description: "Camera move — a key of tower/shots.json"
+        required: true
+        default: "establishing-orbit"
+      task_id:
+        description: "Originating BEIA task id (names the artifact)"
+        required: true
+      console_url:
+        description: "The console's public origin"
+        required: false
+        default: "https://beia.lawrenceomolo.com"
+      samples:
+        description: "Cycles samples per pixel (denoised)"
+        required: false
+        default: "16"
+
+env:
+  BLENDER_VERSION: "5.2.2"
+  CHUNKS: 20
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check the shot exists
+        env:
+          SHOT: ${{ inputs.shot }}
+        run: |
+          node -e '
+            const s = require("./tower/shots.json").shots[process.env.SHOT];
+            if (!s) { console.error("no shot called " + process.env.SHOT + " in tower/shots.json"); process.exit(1) }
+            console.log("shot " + process.env.SHOT + ": " + s.seconds + "s at " + s.fps + " fps")
+          '
+
+      # Same look-first rule as the other workflows: the runner image already
+      # carries these; only reach for the (slow, unreliable) mirror if not.
+      - name: Ensure headless Chrome system libraries
+        timeout-minutes: 8
+        run: |
+          missing=""
+          for p in libnss3 libdbus-1-3 libatk1.0-0 libgbm1 libasound2 libxrandr2 \
+                   libxkbcommon0 libxfixes3 libxcomposite1 libxdamage1 \
+                   libatk-bridge2.0-0 libpango-1.0-0 libcairo2 libcups2; do
+            dpkg -s "$p" >/dev/null 2>&1 || dpkg -s "${p}t64" >/dev/null 2>&1 \
+              || missing="$missing $p"
+          done
+          if [ -z "$missing" ]; then echo "all Chrome libraries present"; exit 0; fi
+          echo "missing:$missing — falling back to the apt mirror"
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update || true
+          # shellcheck disable=SC2086
+          sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends $missing || true
+
+      - name: Install Playwright Chromium (outside the Remotion project)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          cp tower/export-scene.mjs "$RUNNER_TEMP/pw/"
+          cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund playwright@1.61.0
+          npx playwright install chromium
+
+      - name: Export the live scene
+        env:
+          CONSOLE_URL: ${{ inputs.console_url }}
+        run: |
+          node "$RUNNER_TEMP/pw/export-scene.mjs" --url "$CONSOLE_URL" --out scene
+          node tower/fix-glb.cjs scene/tower.glb
+          # The live tower's own sky, from the console (public/tower/hdri, CC0).
+          curl -sfL --retry 3 -o scene/canary_wharf.hdr "$CONSOLE_URL/tower/hdri/canary_wharf.hdr"
+          ls -la scene
+
+      - name: Upload the scene
+        uses: actions/upload-artifact@v4
+        with:
+          name: scene
+          path: scene
+          retention-days: 1
+          if-no-files-found: error
+
+  render:
+    needs: export
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: scene
+          path: scene
+
+      - name: Restore cached Blender
+        id: blender-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/blender
+          key: blender-${{ env.BLENDER_VERSION }}-linux-x64
+
+      # From blender.org's own release server, not the Ubuntu mirror (whose
+      # packaged Blender is years old anyway). Cached, so a once-a-week cost.
+      - name: Fetch Blender
+        if: steps.blender-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        run: |
+          v="$BLENDER_VERSION"; series="${v%.*}"
+          curl -sfL --retry 3 --retry-delay 5 --max-time 540 -o /tmp/blender.tar.xz \
+            "https://download.blender.org/release/Blender${series}/blender-${v}-linux-x64.tar.xz"
+          mkdir -p "$HOME/blender"
+          tar -xJf /tmp/blender.tar.xz -C "$HOME/blender" --strip-components=1
+          rm /tmp/blender.tar.xz
+
+      - name: Ensure Blender's system libraries
+        timeout-minutes: 8
+        run: |
+          missing=""
+          for p in libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 libice6 libegl1; do
+            dpkg -s "$p" >/dev/null 2>&1 || dpkg -s "${p}t64" >/dev/null 2>&1 || missing="$missing $p"
+          done
+          if [ -n "$missing" ]; then
+            echo "missing:$missing"
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 update || true
+            # shellcheck disable=SC2086
+            sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends $missing || true
+          fi
+          "$HOME/blender/blender" --version | head -1
+
+      - name: Render this runner's frames
+        env:
+          SHOT: ${{ inputs.shot }}
+          SAMPLES: ${{ inputs.samples }}
+          CHUNK: ${{ matrix.chunk }}
+        run: |
+          "$HOME/blender/blender" -b -P tower/render.py -- scene \
+            --clip "$SHOT" --chunk "$CHUNK" --of "$CHUNKS" \
+            --samples "$SAMPLES" --hdri scene/canary_wharf.hdr
+          ls "scene/$SHOT" | wc -l
+
+      - name: Upload frames
+        uses: actions/upload-artifact@v4
+        with:
+          name: frames-${{ matrix.chunk }}
+          path: scene/${{ inputs.shot }}/*.png
+          retention-days: 1
+          if-no-files-found: error
+
+  assemble:
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: frames-*
+          path: frames
+          merge-multiple: true
+
+      - name: Restore cached ffmpeg
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/ffmpeg-static
+          key: ffmpeg-static-linux64-gpl-v1
+
+      - name: Fetch ffmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 8
+        run: |
+          url=https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          mkdir -p "$HOME/ffmpeg-static/bin"
+          curl -sfL --retry 3 --retry-delay 5 --max-time 420 -o /tmp/ffmpeg.tar.xz "$url"
+          tar -xJf /tmp/ffmpeg.tar.xz -C /tmp
+          cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ffmpeg  "$HOME/ffmpeg-static/bin/"
+          cp /tmp/ffmpeg-master-latest-linux64-gpl/bin/ffprobe "$HOME/ffmpeg-static/bin/"
+          chmod +x "$HOME/ffmpeg-static/bin/ffmpeg" "$HOME/ffmpeg-static/bin/ffprobe"
+
+      - name: Stitch the clip and pull QA stills
+        env:
+          SHOT: ${{ inputs.shot }}
+        run: |
+          export PATH="$HOME/ffmpeg-static/bin:$PATH"
+          read -r fps n <<< "$(node -e 'const s=require("./tower/shots.json").shots[process.env.SHOT]; console.log(s.fps, Math.round(s.fps*s.seconds))')"
+          have=$(ls frames/frame_*.png | wc -l)
+          # Every frame or no clip: a missing chunk would ship as a jump cut.
+          if [ "$have" -ne "$n" ]; then echo "expected $n frames, have $have"; exit 1; fi
+          mkdir -p out
+          ffmpeg -y -loglevel error -framerate "$fps" -i frames/frame_%04d.png \
+            -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart out/clip.mp4
+          for f in 1 $(( (n + 1) / 2 )) "$n"; do
+            ffmpeg -y -loglevel error -i "frames/frame_$(printf %04d "$f").png" -q:v 3 "out/still_$(printf %04d "$f").jpg"
+          done
+          ls -la out
+
+      - name: Upload the clip
+        uses: actions/upload-artifact@v4
+        with:
+          name: towerclip-${{ inputs.task_id }}
+          path: out
+          retention-days: 1
+          if-no-files-found: error
