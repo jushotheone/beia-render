@@ -218,6 +218,18 @@ jobs:
           have=$(ls frames/frame_*.png | wc -l)
           # Every frame or no clip: a missing chunk would ship as a jump cut.
           if [ "$have" -ne "$n" ]; then echo "expected $n frames, have $have"; exit 1; fi
+          # No black frames. The first published orbit ended with the camera
+          # inside a neighbouring tower — half a second of black that every
+          # pipeline stage reported as success. A clip with a frame this dark
+          # is a camera move that needs fixing, not a clip to ship.
+          ffmpeg -loglevel error -i frames/frame_%04d.png \
+            -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=yavg.txt" -f null -
+          darkest=$(grep -o 'YAVG=[0-9.]*' yavg.txt | cut -d= -f2 | sort -n | head -1)
+          echo "darkest frame luma: $darkest / 255"
+          if awk "BEGIN{exit !($darkest < 20)}"; then
+            n_dark=$(grep -o 'YAVG=[0-9.]*' yavg.txt | cut -d= -f2 | awk '$1 < 20' | wc -l)
+            echo "::error::$n_dark near-black frame(s) — the camera path passes through geometry"; exit 1
+          fi
           mkdir -p out
           ffmpeg -y -loglevel error -framerate "$fps" -i frames/frame_%04d.png \
             -c:v libx264 -pix_fmt yuv420p -crf 18 -movflags +faststart out/clip.mp4
