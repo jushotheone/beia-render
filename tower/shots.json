@@ -1,5 +1,5 @@
 {
-  "_about": "Saved camera moves for tower clips. Coordinates are the live scene's own units and axes (three.js, Y up), measured from an export taken at the roof stop (the default --stop): the roof deck is y\u22480, the tower stands at x=z=0, the street is \u2248 y -64. 'orbit' circles the tower; 'path' moves between keyframes. Rendered by tower/render.py --clip <name>.",
+  "_about": "Saved camera moves for tower clips. Coordinates are the live scene's own units and axes (three.js, Y up), measured from an export taken at the roof stop (the default --stop): the roof deck is y\u22480, the tower stands at x=z=0, the street is \u2248 y -64. 'orbit' circles the tower; 'path' moves between keyframes. Rendered by tower/render.py --clip <name>. A 'sequence' cuts between saved moves in order; 'fov' (vertical degrees) sets a shot's lens, else the exported camera's.",
   "shots": {
     "establishing-orbit": {
       "fps": 24,
@@ -74,6 +74,106 @@
             0
           ]
         }
+      ]
+    },
+    "dock-glide": {
+      "fps": 24,
+      "seconds": 4.5,
+      "path": [
+        {
+          "pos": [
+            -135,
+            -56,
+            0
+          ],
+          "look": [
+            0,
+            -24,
+            0
+          ]
+        },
+        {
+          "pos": [
+            -64,
+            -54,
+            0
+          ],
+          "look": [
+            0,
+            -14,
+            0
+          ]
+        }
+      ],
+      "fov": 30
+    },
+    "facade-rise": {
+      "fps": 24,
+      "seconds": 4.5,
+      "path": [
+        {
+          "pos": [
+            8,
+            -45,
+            72
+          ],
+          "look": [
+            0,
+            -36,
+            0
+          ]
+        },
+        {
+          "pos": [
+            -4,
+            9,
+            52
+          ],
+          "look": [
+            0,
+            5,
+            0
+          ]
+        }
+      ],
+      "fov": 38
+    },
+    "city-reveal": {
+      "fps": 24,
+      "seconds": 5,
+      "path": [
+        {
+          "pos": [
+            -34,
+            6,
+            -58
+          ],
+          "look": [
+            0,
+            -10,
+            0
+          ]
+        },
+        {
+          "pos": [
+            -135,
+            92,
+            -200
+          ],
+          "look": [
+            0,
+            -18,
+            0
+          ]
+        }
+      ],
+      "fov": 40
+    },
+    "dusk-trailer": {
+      "sequence": [
+        "dock-glide",
+        "city-reveal",
+        "facade-rise"
       ]
     }
   }

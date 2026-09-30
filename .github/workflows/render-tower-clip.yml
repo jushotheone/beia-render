@@ -36,6 +36,14 @@ on:
         description: "Cycles samples per pixel (denoised)"
         required: false
         default: "16"
+      look:
+        description: "Grade: day (the original) or dusk"
+        required: false
+        default: "day"
+      height:
+        description: "Clip height in pixels (16:9): 720 or 1080"
+        required: false
+        default: "720"
 
 env:
   BLENDER_VERSION: "5.2.2"
@@ -57,9 +65,12 @@ jobs:
           SHOT: ${{ inputs.shot }}
         run: |
           node -e '
-            const s = require("./tower/shots.json").shots[process.env.SHOT];
+            const all = require("./tower/shots.json").shots;
+            const s = all[process.env.SHOT];
             if (!s) { console.error("no shot called " + process.env.SHOT + " in tower/shots.json"); process.exit(1) }
-            console.log("shot " + process.env.SHOT + ": " + s.seconds + "s at " + s.fps + " fps")
+            const segs = s.sequence ? s.sequence.map((k) => all[k]) : [s];
+            if (segs.some((g) => !g)) { console.error("sequence " + process.env.SHOT + " names a shot that does not exist"); process.exit(1) }
+            console.log("shot " + process.env.SHOT + ": " + segs.reduce((t, g) => t + g.seconds, 0) + "s at " + segs[0].fps + " fps")
           '
 
       # Same look-first rule as the other workflows: the runner image already
@@ -163,10 +174,13 @@ jobs:
           SHOT: ${{ inputs.shot }}
           SAMPLES: ${{ inputs.samples }}
           CHUNK: ${{ matrix.chunk }}
+          LOOK: ${{ inputs.look }}
+          HEIGHT: ${{ inputs.height }}
         run: |
           "$HOME/blender/blender" -b -P tower/render.py -- scene \
             --clip "$SHOT" --chunk "$CHUNK" --of "$CHUNKS" \
-            --samples "$SAMPLES" --hdri scene/canary_wharf.hdr
+            --samples "$SAMPLES" --hdri scene/canary_wharf.hdr \
+            --look "$LOOK" --height "$HEIGHT"
           ls "scene/$SHOT" | wc -l
 
       - name: Upload frames
@@ -214,7 +228,7 @@ jobs:
           SHOT: ${{ inputs.shot }}
         run: |
           export PATH="$HOME/ffmpeg-static/bin:$PATH"
-          read -r fps n <<< "$(node -e 'const s=require("./tower/shots.json").shots[process.env.SHOT]; console.log(s.fps, Math.round(s.fps*s.seconds))')"
+          read -r fps n <<< "$(node -e 'const all=require("./tower/shots.json").shots; const s=all[process.env.SHOT]; const segs=s.sequence?s.sequence.map(k=>all[k]):[s]; console.log(segs[0].fps, segs.reduce((t,g)=>t+Math.round(g.fps*g.seconds),0))')"
           have=$(ls frames/frame_*.png | wc -l)
           # Every frame or no clip: a missing chunk would ship as a jump cut.
           if [ "$have" -ne "$n" ]; then echo "expected $n frames, have $have"; exit 1; fi
