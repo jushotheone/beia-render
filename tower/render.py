@@ -219,7 +219,12 @@ def apply_dusk():
                 # The tower's own light: lit ceilings, lamps and the BEIA
                 # mark. At dusk they carry the frame, so warm and lift them.
                 has_tex = any(n.type == "TEX_IMAGE" for n in m.node_tree.nodes)
-                if not has_tex:
+                ec = b.inputs["Emission Color"].default_value
+                # Only the near-white ceiling light is warmed. A district's
+                # coloured wall and a working screen keep their own colour —
+                # they are what say whose floor it is and that someone is on it.
+                near_white = max(ec[:3]) > 0 and (max(ec[:3]) - min(ec[:3])) / max(ec[:3]) < 0.3
+                if not has_tex and near_white:
                     b.inputs["Emission Color"].default_value = (1.0, 0.76, 0.5, 1)
                 b.inputs["Emission Strength"].default_value = es * (2.5 if has_tex else 1.6)
                 continue
