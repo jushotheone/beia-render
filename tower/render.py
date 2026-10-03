@@ -148,6 +148,24 @@ except TypeError:
 scene.view_settings.exposure = -0.6
 
 
+def darken(m, b, k):
+    """Scale a material's base colour by k, textured or not: a texture-fed
+    base colour ignores its default value, so the link gets a multiply."""
+    inp = b.inputs["Base Color"]
+    if not inp.is_linked:
+        c = inp.default_value
+        inp.default_value = (c[0] * k, c[1] * k, c[2] * k, 1)
+        return
+    src = inp.links[0].from_socket
+    mul = m.node_tree.nodes.new("ShaderNodeMix")
+    mul.data_type = "RGBA"
+    mul.blend_type = "MULTIPLY"
+    mul.inputs["Factor"].default_value = 1.0
+    mul.inputs[7].default_value = (k, k, k, 1)  # B colour
+    m.node_tree.links.new(src, mul.inputs[6])  # A colour
+    m.node_tree.links.new(mul.outputs[2], inp)
+
+
 def apply_dusk():
     """London at dusk: the grade that stops the city reading as a pale model.
 
@@ -195,7 +213,13 @@ def apply_dusk():
         if ob.type != "MESH":
             continue
         zs = [v.co.z for v in ob.data.vertices]
-        flat = bool(zs) and max(zs) - min(zs) <= 1e-3
+        span = max(zs) - min(zs) if zs else 0
+        flat = bool(zs) and span <= 1e-3
+        # Ground-like: footways, road decks and bridges rise up to ~15 m over
+        # the docks, so they are not perfectly flat, but they are surfaces you
+        # walk on, not facades. They darken with the ground and never get the
+        # window-light pattern (they did, and drew bright streaks: 2026-10-03).
+        ground = bool(zs) and span <= 8.0 and footprint(ob) > 300
         for m in ob.data.materials:
             if not m or not m.use_nodes or m.get("_dusk"):
                 continue
@@ -203,7 +227,7 @@ def apply_dusk():
             b = m.node_tree.nodes.get("Principled BSDF")
             if not b:
                 continue
-            if flat:
+            if flat or ground:
                 c = b.inputs["Base Color"].default_value
                 if c[2] > c[0] * 1.8 and c[2] > 0.3:
                     # Water: dark and glossy, so it carries the sky and the
@@ -211,7 +235,7 @@ def apply_dusk():
                     b.inputs["Base Color"].default_value = (0.01, 0.025, 0.035, 1)
                     b.inputs["Roughness"].default_value = 0.04
                 else:
-                    b.inputs["Base Color"].default_value = (c[0] * 0.28, c[1] * 0.28, c[2] * 0.28, 1)
+                    darken(m, b, 0.28)
                     b.inputs["Roughness"].default_value = 0.85
                 continue
             es = b.inputs["Emission Strength"].default_value
